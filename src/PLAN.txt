@@ -1,0 +1,6 @@
+PLAN
+
+Worlds in order of difficulty
+1) Convexity city
+2) Complexity city
+3) Perplexity city
