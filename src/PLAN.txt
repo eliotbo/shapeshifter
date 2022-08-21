@@ -10,6 +10,22 @@ create new repo online from local repo
 
 
 Worlds in order of difficulty
-1) Convexity city
-2) Complexity city
-3) Perplexity city
+0) Simplicity 
+1) Convexity
+2) Perplexity
+3) Complexity
+
+
+Write the section titles with low poly font
+
+
+Each section has its own theme
+0) Wood
+1) Metal
+2) Stone 
+3) Glass
+
+
+
+
+Make a better rounded look: at every point, but a bezier curve to round off the edges

@@ -63,7 +63,7 @@ fn main() {
         .add_startup_system(setup_mesh)
         .add_system(end_polygon)
         .add_system(start_polygon)
-        .add_system(record_mouse_events_system)
+        .add_system(record_mouse_events_system.exclusive_system().at_start())
         .add_system(direct_make_polygon_action)
         .add_system(making_segment)
         .add_system(end_segment)
@@ -124,14 +124,16 @@ pub fn glow_poly(
     mut materials: ResMut<Assets<FillMesh2dMaterial>>,
 ) {
     let left_mouse = mouse_button_input.just_pressed(MouseButton::Left);
-    let right_mouse = mouse_button_input.just_pressed(MouseButton::Right);
+    let right_mouse_click = mouse_button_input.just_pressed(MouseButton::Right);
 
     for (entity, material_handle, transform, mesh_meta) in query.iter() {
-        let mut path = mesh_meta.path.clone();
+        let path = mesh_meta.path.clone();
         // info!("is clicked");
-        let (_, transform_rotation_angle) = transform.rotation.to_axis_angle();
+        let (axis, transform_rotation_angle) = transform.rotation.to_axis_angle();
+        let angle = axis.z * transform_rotation_angle;
+        // info!("axis: {:?}, angle: {:?}", axis, transform_rotation_angle);
 
-        let rot = lyon::geom::Rotation::radians(transform_rotation_angle);
+        let rot = lyon::geom::Rotation::radians(angle);
         let translation =
             lyon::geom::Translation::new(transform.translation.x, transform.translation.y);
 
@@ -141,7 +143,7 @@ pub fn glow_poly(
         let is_inside_poly = hit_test_path(
             &cursor.clone().into(),
             transformed_path.iter(),
-            FillRule::NonZero,
+            FillRule::EvenOdd,
             0.1,
         );
 
@@ -153,9 +155,9 @@ pub fn glow_poly(
             material.show_com = 0.0;
         }
 
-        info!("is inside poly: {}", is_inside_poly);
+        // info!("is inside poly: {}", is_inside_poly);
 
-        if is_inside_poly && right_mouse {
+        if is_inside_poly && right_mouse_click {
             commands.entity(entity).insert(Rotating {
                 starting_angle: transform_rotation_angle,
             });
@@ -177,14 +179,14 @@ pub fn rotate_poly(
     cursor: Res<Cursor>,
     mut query: Query<(Entity, &mut Transform, &Rotating), With<Polygon>>,
 ) {
-    if mouse_button_input.pressed(MouseButton::Right) {
-        for (_, mut transform, rotating) in query.iter_mut() {
-            println!("rotating");
-            let vertical_mouse_dist = cursor.position.y - cursor.last_right_click_position.y;
-            transform.rotation =
-                Quat::from_rotation_z(vertical_mouse_dist * 0.0025 + rotating.starting_angle);
-        }
+    // if mouse_button_input.pressed(MouseButton::Right) {
+    for (_, mut transform, rotating) in query.iter_mut() {
+        // println!("rotating");
+        let vertical_mouse_dist = cursor.position.y - cursor.last_right_click_position.y;
+        transform.rotation =
+            Quat::from_rotation_z(vertical_mouse_dist * 0.0025 + rotating.starting_angle);
     }
+    // }
 
     if mouse_button_input.just_released(MouseButton::Right) {
         // remove Rotating
