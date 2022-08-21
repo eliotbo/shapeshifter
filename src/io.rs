@@ -25,18 +25,13 @@ use std::path::PathBuf;
 use lyon::tessellation::math::{point, Point};
 use lyon::tessellation::path::{builder::NoAttributes, path::BuilderImpl, Path};
 
-use bevy_obj::*;
-
 pub struct QuickLoad;
 
 // only loads groups
 pub fn quick_load_mesh(
     mut commands: Commands,
-    // mut meshes: ResMut<Assets<Mesh>>,
     asset_server: Res<AssetServer>,
-    // globals: Res<Globals>,
     mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
-
     mut quickload_event_reader: EventReader<QuickLoad>,
     globals: Res<Globals>,
 ) {
@@ -44,14 +39,11 @@ pub fn quick_load_mesh(
         info!("quick loading mesh");
 
         let mut save_path = std::env::current_dir().unwrap();
-        save_path.push("assets/meshes/my_mesh3.obj");
+        save_path.push("assets/meshes/my_mesh6.obj");
 
         let mesh_handle: Handle<Mesh> = asset_server.load(save_path.to_str().unwrap());
 
-        // let temp_save_path = "meshes/my_mesh3.obj";
-        // let mesh_handle: Handle<Mesh> = asset_server.load(temp_save_path);
-
-        // get mesh info using the .meta extension
+        // get mesh info using the .points extension
         let saved_mesh_data = save_path.with_extension("points");
         let mut file = std::fs::File::open(saved_mesh_data).unwrap();
         let mut contents = String::new();
@@ -88,6 +80,7 @@ pub fn quick_load_mesh(
                 transform: Transform::default(),
                 ..default()
             })
+            .insert(Polygon)
             .insert(MeshMeta {
                 id,
                 path: built_path.clone(),
@@ -95,9 +88,27 @@ pub fn quick_load_mesh(
             })
             .id();
 
-        // meshes.add(mesh_handle);
+        // let mat_handle = fill_materials.add(FillMesh2dMaterial {
+        //     color: globals.polygon_color.into(),
+        //     show_com: 0.0, // show center of mass
+        // });
+
+        // let id = rng.gen::<u64>();
+        // let entity = commands
+        //     .spawn_bundle(MaterialMesh2dBundle {
+        //         mesh: Mesh2dHandle(meshes.add(mesh)),
+        //         material: mat_handle,
+        //         transform: fill_transform,
+        //         ..default()
+        //     })
+        //     .insert(Polygon)
+        //     .insert(MeshMeta {
+        //         id,
+        //         path: path.clone(),
+        //         points: poly.all_points.clone(),
+        //     })
+        //     .id();
     }
-    // let mesh_handle = asset_server.load("example.obj");
 }
 
 // pub fn open_file_dialog(save_name: &str, folder: &str, extension: &str) -> Option<PathBuf> {

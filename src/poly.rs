@@ -298,6 +298,8 @@ pub fn end_polygon(
 
             let path = poly.path.clone().build();
             println!("path: {:?}", path);
+
+            // the path is shifted to the origin and the mesh transform is moved instead
             let (mesh, center_of_mass) = make_polygon_mesh(&path, &globals.polygon_color);
 
             let fill_transform = Transform::from_translation(center_of_mass.extend(0.0));
@@ -322,7 +324,13 @@ pub fn end_polygon(
                 .insert(MeshMeta {
                     id,
                     path: path.clone(),
-                    points: poly.all_points.clone(),
+                    // move points towards the origin
+                    points: poly
+                        .all_points
+                        .clone()
+                        .iter()
+                        .map(|x| *x - center_of_mass)
+                        .collect(),
                 })
                 .id();
         }
@@ -396,9 +404,7 @@ pub fn make_polygon_mesh(path: &Path, color: &Color) -> (Mesh, Vec2) {
     mesh_pos_attributes = mesh_pos_attributes
         .iter()
         .map(|x| {
-            let mut new_pos = Vec2::new(x[0], x[1]);
-            new_pos -= center_of_mass;
-
+            let new_pos = Vec2::new(x[0], x[1]) - center_of_mass;
             [new_pos.x, new_pos.y, 0.0]
         })
         .collect();

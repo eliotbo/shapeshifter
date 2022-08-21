@@ -17,6 +17,7 @@ pub struct Cursor {
     pub position: Vec2,
     pub pos_relative_to_click: Vec2,
     pub last_click_position: Vec2,
+    pub last_right_click_position: Vec2,
 }
 
 impl Default for Cursor {
@@ -25,6 +26,7 @@ impl Default for Cursor {
             position: Vec2::ZERO,
             pos_relative_to_click: Vec2::ZERO,
             last_click_position: Vec2::ZERO,
+            last_right_click_position: Vec2::ZERO,
         }
     }
 }
@@ -87,6 +89,10 @@ pub fn record_mouse_events_system(
     if mouse_button_input.just_pressed(MouseButton::Left) {
         cursor_res.last_click_position = cursor_res.position;
         cursor_res.pos_relative_to_click = Vec2::ZERO;
+    }
+
+    if mouse_button_input.just_pressed(MouseButton::Right) {
+        cursor_res.last_right_click_position = cursor_res.position;
     }
 }
 
