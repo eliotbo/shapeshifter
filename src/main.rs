@@ -2,6 +2,7 @@
 
 mod cam;
 pub mod input;
+mod io;
 pub mod material;
 mod poly;
 pub mod util;
@@ -13,6 +14,7 @@ use bevy::{
 };
 use cam::*;
 use input::*;
+use io::*;
 use material::*;
 use poly::*;
 use util::*;
@@ -27,6 +29,7 @@ use lyon::tessellation::path::{builder::NoAttributes, Path};
 use lyon::tessellation::{FillOptions, FillTessellator, VertexBuffers};
 
 use bevy_inspector_egui::WorldInspectorPlugin;
+use bevy_obj::*;
 
 use rand::{thread_rng, Rng};
 
@@ -43,30 +46,31 @@ fn main() {
         // .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_event::<StartMakingPolygon>()
         .add_event::<StartMakingSegment>()
-        .add_event::<EndSedgment>()
+        .add_event::<EndSegment>()
         .add_event::<EndMakingPolygon>()
+        .add_event::<DeleteEvent>()
+        .add_event::<QuickLoad>()
+        .add_event::<SaveMeshEvent>()
         .insert_resource(Globals::default())
         .insert_resource(Cursor::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(CamPlugin)
         .add_plugin(FillMesh2dPlugin)
         .add_plugin(WorldInspectorPlugin::new())
+        .add_plugin(ObjPlugin)
         .add_startup_system(camera_setup)
         .add_startup_system(setup_mesh)
         .add_system(end_polygon)
         .add_system(start_polygon)
         .add_system(record_mouse_events_system)
-        .add_system(direct_action)
-        // .add_system(tests)
+        .add_system(direct_make_polygon_action)
+        .add_system(making_segment)
+        .add_system(end_segment)
+        .add_system(start_poly_segment)
+        .add_system(quick_load_mesh)
+        .add_system(quick_save)
+        // .add_system(save_mesh)
         .run();
-}
-
-pub type MeshId = u64;
-
-#[derive(Component)]
-pub struct MeshMeta {
-    pub id: MeshId,
-    pub path: Path,
 }
 
 pub fn setup_mesh(
@@ -102,7 +106,7 @@ pub fn setup_mesh(
     /////////////////////////// cutting segment /////////////////////////////
 
     /////////////////////////// polygon /////////////////////////////
-    let path = make_square();
+    let (path, points) = make_square();
     let color = Color::RED;
     let (mesh, center_of_mass) = make_polygon_mesh(&path, &color);
 
@@ -127,6 +131,7 @@ pub fn setup_mesh(
         .insert(MeshMeta {
             id,
             path: path.clone(),
+            points,
         })
         .id();
 }

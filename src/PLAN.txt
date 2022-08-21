@@ -1,5 +1,14 @@
 PLAN
 
+git commands
+
+create new repo online from local repo
+    gh repo create
+    git push --set-upstream origin main
+
+
+
+
 Worlds in order of difficulty
 1) Convexity city
 2) Complexity city

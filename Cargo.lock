@@ -577,6 +577,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_obj"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ddae2fad61def320b9b2001c1bb1d70b6ec7cc41891af5202ba1d9ccf697c327"
+dependencies = [
+ "anyhow",
+ "bevy_app",
+ "bevy_asset",
+ "bevy_render",
+ "bevy_utils",
+ "obj-rs",
+ "thiserror",
+]
+
+[[package]]
 name = "bevy_pbr"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2522,6 +2537,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "obj-exporter"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d133460dfa7bb530c954eb6c98c4c4ac983cc2ec70840f3a9cf9bf6cf3bee824"
+dependencies = [
+ "lazy_static",
+ "wavefront_obj",
+]
+
+[[package]]
+name = "obj-rs"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c90a2f645433dba5c609451d3fa847282b0f23ee8d8fa75491a946af53cb1db4"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "objc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2975,8 +3009,12 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
+ "bevy_obj",
  "lyon",
+ "obj-exporter",
  "rand",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3398,6 +3436,12 @@ name = "wasm-bindgen-shared"
 version = "0.2.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6598dd0bd3c7d51095ff6531a5b23e02acdc81804e30d8f07afb77b7215a140a"
+
+[[package]]
+name = "wavefront_obj"
+version = "5.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33c9cbb65c5aac6493000cdabe11f49588d19b547ccd7501f44fc96a6b9406ff"
 
 [[package]]
 name = "web-sys"
