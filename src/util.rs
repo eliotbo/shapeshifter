@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use lyon::tessellation::math::{point, Point};
 use lyon::tessellation::path::{builder::NoAttributes, Path};
 
 use serde::Deserialize;
@@ -20,6 +21,16 @@ impl Default for Globals {
             cutting_segment_color: Color::ORANGE,
         }
     }
+}
+
+#[derive(Component)]
+pub struct Rotating {
+    pub starting_angle: f32,
+}
+
+#[derive(Component)]
+pub struct Translating {
+    pub starting_pos: Vec2,
 }
 
 pub struct DeleteEvent;
@@ -44,4 +55,85 @@ impl From<&MeshMeta> for SaveMeshMeta {
             points: mesh_meta.points.clone(),
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Segment {
+    pub start: Point,
+    pub end: Point,
+}
+
+impl Segment {
+    // function that computes the intersection of two finite segments in 2d
+    pub fn intersect(&self, other: Segment) -> Option<Point> {
+        let a = self.start;
+        let b = self.end;
+        let c = other.start;
+        let d = other.end;
+
+        let denom = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x);
+        if denom == 0.0 {
+            return None;
+        }
+
+        let nume_a = (a.y - c.y) * (d.x - c.x) - (a.x - c.x) * (d.y - c.y);
+        let nume_b = (a.y - c.y) * (b.x - a.x) - (a.x - c.x) * (b.y - a.y);
+
+        if nume_a == 0.0 && nume_b == 0.0 {
+            return None;
+        }
+
+        let u_a = nume_a / denom;
+        let u_b = nume_b / denom;
+
+        if u_a >= 0.0 && u_a <= 1.0 && u_b >= 0.0 && u_b <= 1.0 {
+            return Some(point(a.x + u_a * (b.x - a.x), a.y + u_a * (b.y - a.y)));
+        }
+
+        return None;
+    }
+}
+
+pub struct SegmentMeta {
+    pub length: f32,
+    pub center_of_mass: Vec2,
+    pub transform: Transform,
+}
+
+pub fn get_segment_meta(segment: Segment) -> SegmentMeta {
+    let segment_length = (segment.end - segment.start).length();
+
+    let segment_angle = (segment.end.y - segment.start.y).atan2(segment.end.x - segment.start.x);
+
+    let segment_center_of_mass = Point::new(
+        (segment.start.x + segment.end.x) / 2.0,
+        (segment.start.y + segment.end.y) / 2.0,
+    );
+
+    let mut transform = Transform::default();
+
+    transform.rotation = Quat::from_rotation_z(segment_angle);
+    transform.translation = Vec3::new(segment_center_of_mass.x, segment_center_of_mass.y, 10.0);
+
+    SegmentMeta {
+        length: segment_length,
+        center_of_mass: Vec2::new(segment_center_of_mass.x, segment_center_of_mass.y),
+        transform: transform,
+    }
+}
+
+// The path is by default centered at the origin, so we need to translate it to the
+// position of the entity.
+pub fn transform_path(path: &Path, transform: &Transform) -> (Path, f32) {
+    let (axis, transform_rotation_angle) = transform.rotation.to_axis_angle();
+    let angle = axis.z * transform_rotation_angle;
+
+    let rot = lyon::geom::Rotation::radians(angle);
+    let translation =
+        lyon::geom::Translation::new(transform.translation.x, transform.translation.y);
+
+    // the points are at the origin, so we need to take the translation + rotation into account
+    let transformed_path = path.clone().transformed(&rot).transformed(&translation);
+
+    return (transformed_path, angle);
 }

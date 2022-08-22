@@ -3,14 +3,40 @@ use bevy::{
     prelude::*,
 };
 
+use crate::cut::*;
 use crate::io::{QuickLoad, SaveMeshEvent};
-use crate::poly::{
-    EndMakingPolygon, EndSegment, MakingPolygon, MakingSegment, StartMakingPolygon,
-    StartMakingSegment,
-};
+use crate::poly::{MakingPolygon, MakingSegment};
 use crate::util::*;
 
 use lyon::tessellation::math::Point;
+
+// pub struct StartMakingCutSegment {
+//     pub start: Vec2,
+// }
+
+// pub struct EndCutSegment {
+//     pub end: Vec2,
+// }
+
+// pub struct StartMakingPolygon {
+//     pub pos: Point,
+// }
+// pub struct StartMakingSegment {
+//     pub pos: Point,
+// }
+// pub struct EndSegment {
+//     pub pos: Point,
+// }
+
+pub enum Action {
+    StartMakingPolygon { pos: Point },
+    EndMakingPolygon,
+    StartMakingSegment { pos: Point },
+    EndSegment { pos: Point },
+    StartMakingCutSegment { start: Vec2 },
+    EndCutSegment { end: Vec2 },
+    Delete,
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Cursor {
@@ -97,33 +123,40 @@ pub fn record_mouse_events_system(
 }
 
 pub fn direct_make_polygon_action(
+    mut commands: Commands,
     // mut action_event_writer: EventWriter<Action>,
-    making_poly_query: Query<&mut MakingPolygon>,
+    making_poly_query: Query<&MakingPolygon>,
+    making_cut_query: Query<(Entity, &MakingCutSegment)>,
     keyboard_input: Res<Input<KeyCode>>,
     mouse_button_input: Res<Input<MouseButton>>,
-    mut mouse_wheel_events: EventReader<MouseWheel>,
-    mut start_polygon: EventWriter<StartMakingPolygon>,
-    mut start_segment: EventWriter<EndSegment>,
-    mut end_polygon: EventWriter<EndMakingPolygon>,
-    mut delete_event: EventWriter<DeleteEvent>,
+    // mut mouse_wheel_events: EventReader<MouseWheel>,
     mut quickload_event_writer: EventWriter<QuickLoad>,
+
+    // mut start_polygon: EventWriter<StartMakingPolygon>,
+    // mut start_segment: EventWriter<EndSegment>,
+    // mut start_cut_segment: EventWriter<StartMakingCutSegment>,
+    // mut end_polygon: EventWriter<EndMakingPolygon>,
+    // mut delete_event: EventWriter<DeleteEvent>,
+    mut action_event: EventWriter<Action>,
     mut quicksave_event_writer: EventWriter<SaveMeshEvent>,
+    // mut end_cut_segment: EventWriter<EndCutSegment>,
     cursor: Res<Cursor>,
 ) {
     let mouse_pressed = mouse_button_input.pressed(MouseButton::Left);
 
     let mouse_just_pressed = mouse_button_input.just_pressed(MouseButton::Left);
+    let mouse_right_just_pressed = mouse_button_input.just_pressed(MouseButton::Right);
 
-    let mut mouse_wheel_up = false;
-    let mut mouse_wheel_down = false;
-    if let Some(mouse_wheel) = mouse_wheel_events.iter().next() {
-        if mouse_wheel.y > 0.5 {
-            mouse_wheel_up = true;
-        }
-        if mouse_wheel.y < -0.5 {
-            mouse_wheel_down = true;
-        }
-    }
+    // let mut mouse_wheel_up = false;
+    // let mut mouse_wheel_down = false;
+    // if let Some(mouse_wheel) = mouse_wheel_events.iter().next() {
+    //     if mouse_wheel.y > 0.5 {
+    //         mouse_wheel_up = true;
+    //     }
+    //     if mouse_wheel.y < -0.5 {
+    //         mouse_wheel_down = true;
+    //     }
+    // }
 
     // only used for pattern matching
     let _pressed_g = keyboard_input.just_pressed(KeyCode::G);
@@ -134,6 +167,8 @@ pub fn direct_make_polygon_action(
     let _pressed_t = keyboard_input.just_pressed(KeyCode::T);
     let pressed_delete = keyboard_input.just_pressed(KeyCode::Delete);
     let pressed_enter = keyboard_input.just_pressed(KeyCode::Return);
+    let pressed_escape = keyboard_input.just_pressed(KeyCode::Escape);
+    let pressed_space = keyboard_input.just_pressed(KeyCode::Space);
 
     // match keys / mouse buttons / mouse wheel combination and send event to corresponding action
     match (
@@ -141,39 +176,76 @@ pub fn direct_make_polygon_action(
         keyboard_input.pressed(KeyCode::LControl),
         keyboard_input.pressed(KeyCode::Space),
     ) {
-        // cannot start a polygon if one is already being made
-        (true, false, false) if (mouse_just_pressed && making_poly_query.iter().count() == 0) => {
-            start_polygon.send(StartMakingPolygon {
-                pos: cursor.clone().into(),
-            })
-        }
-
-        // TODO: move to mouseclick event router
-        (false, true, false) if _pressed_g => {}
-        (true, true, false) if _pressed_g => {}
-        (false, true, false) if _pressed_h => {}
-        (true, true, false) if _pressed_h => {}
-        (false, true, false) if pressed_s => quicksave_event_writer.send(SaveMeshEvent),
-        (false, true, false) if pressed_l => quickload_event_writer.send(QuickLoad),
-        (false, true, false) if _pressed_z => {}
-        (true, true, false) if _pressed_z => {}
-        (false, true, false) if mouse_wheel_up => {}
-        (false, true, false) if mouse_wheel_down => {}
-
-        (true, false, false) if _pressed_t => {}
-
-        (false, false, false) if pressed_delete => {
-            delete_event.send(DeleteEvent);
-        }
-
-        (false, false, false) if (pressed_enter && making_poly_query.iter().count() == 1) => {
-            end_polygon.send(EndMakingPolygon);
+        //
+        //
+        //
+        ////////////// if currently making either a polygon or a cut segment  /////////////////////////////
+        //
+        //
+        //
+        (false, false, _)
+            if ((pressed_enter || mouse_right_just_pressed || pressed_space)
+                && making_poly_query.iter().count() == 1) =>
+        {
+            action_event.send(Action::EndMakingPolygon);
         }
 
         // a click ends the current segment
         (false, false, false) if (mouse_just_pressed && making_poly_query.iter().count() == 1) => {
-            start_segment.send(EndSegment {
+            action_event.send(Action::EndSegment {
                 pos: cursor.clone().into(),
+            });
+        }
+
+        (false, false, false) if mouse_just_pressed && making_cut_query.iter().count() == 1 => {
+            action_event.send(Action::EndCutSegment {
+                end: cursor.position,
+            });
+        }
+        //
+        //
+        //
+        ////////////// if currently making either a polygon or a cut segment  /////////////////////////////
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        (false, true, false) if pressed_s => quicksave_event_writer.send(SaveMeshEvent),
+        (false, true, false) if pressed_l => quickload_event_writer.send(QuickLoad),
+        (false, false, false) if _pressed_g => {}
+
+        (false, false, false) if pressed_escape && making_cut_query.iter().count() == 1 => {
+            // delete cut segment
+            let (entity, _) = making_cut_query.single();
+            commands.entity(entity).despawn();
+        }
+        (true, true, false) if _pressed_g => {}
+        (false, true, false) if _pressed_h => {}
+        (true, true, false) if _pressed_h => {}
+        (false, true, false) if _pressed_z => {}
+        (true, true, false) if _pressed_z => {}
+        // (false, true, false) if mouse_wheel_up => {}
+        // (false, true, false) if mouse_wheel_down => {}
+        (true, false, false) if _pressed_t => {}
+
+        (false, false, false) if pressed_delete || pressed_escape => {
+            action_event.send(Action::Delete);
+        }
+
+        // cannot start a polygon if one is already being made
+        (true, false, false) if (mouse_just_pressed && making_poly_query.iter().count() == 0) => {
+            action_event.send(Action::StartMakingPolygon {
+                pos: cursor.clone().into(),
+            })
+        }
+
+        // cannot start a cut segment if one is already being made
+        (false, true, false) if mouse_just_pressed && making_cut_query.iter().count() == 0 => {
+            action_event.send(Action::StartMakingCutSegment {
+                start: cursor.position,
             });
         }
 
@@ -182,14 +254,14 @@ pub fn direct_make_polygon_action(
 }
 
 pub fn direct_release_action(
-    // mut action_event_writer: EventWriter<Action>,
     mut commands: Commands,
-    keyboard_input: Res<Input<KeyCode>>,
+    segment_query: Query<Entity, With<MakingSegment>>,
     mouse_button_input: Res<Input<MouseButton>>,
-    mut mouse_wheel_events: EventReader<MouseWheel>,
-    mut start_polygon: EventWriter<StartMakingPolygon>,
-    mut segment_query: Query<Entity, (With<MakingSegment>)>,
-    cursor: Res<Cursor>,
+    // mut start_polygon: EventWriter<StartMakingPolygon>,
+    // mut action_event_writer: EventWriter<Action>,
+    // keyboard_input: Res<Input<KeyCode>>,
+    // mut mouse_wheel_events: EventReader<MouseWheel>,
+    // cursor: Res<Cursor>,
 ) {
     if mouse_button_input.just_released(MouseButton::Left) {
         // delete MakingSegment if it exists

@@ -26,6 +26,7 @@ use lyon::tessellation::math::{point, Point};
 use lyon::tessellation::path::{builder::NoAttributes, path::BuilderImpl, Path};
 
 pub struct QuickLoad;
+pub struct Load(pub String);
 
 // only loads groups
 pub fn quick_load_mesh(
@@ -33,13 +34,26 @@ pub fn quick_load_mesh(
     asset_server: Res<AssetServer>,
     mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
     mut quickload_event_reader: EventReader<QuickLoad>,
+    mut load_event_reader: EventReader<Load>,
     globals: Res<Globals>,
 ) {
+    let mut load_names = Vec::new();
+
     for _ in quickload_event_reader.iter() {
+        load_names.push("my_mesh7".to_string());
+    }
+
+    for load in load_event_reader.iter() {
+        load_names.push(load.0.clone());
+    }
+
+    for name in load_names {
         info!("quick loading mesh");
 
+        let filename = "assets/meshes/".to_owned() + &name + ".obj";
+
         let mut save_path = std::env::current_dir().unwrap();
-        save_path.push("assets/meshes/my_mesh6.obj");
+        save_path.push(filename);
 
         let mesh_handle: Handle<Mesh> = asset_server.load(save_path.to_str().unwrap());
 
@@ -73,11 +87,13 @@ pub fn quick_load_mesh(
         let mut rng = thread_rng();
         let id = rng.gen::<u64>();
 
-        let entity = commands
+        let transform = Transform::from_translation(Vec3::new(0.0, 0.0, rng.gen::<f32>()));
+
+        commands
             .spawn_bundle(MaterialMesh2dBundle {
                 mesh: Mesh2dHandle(mesh_handle),
                 material: mat_handle,
-                transform: Transform::default(),
+                transform,
                 ..default()
             })
             .insert(Polygon)
@@ -85,8 +101,7 @@ pub fn quick_load_mesh(
                 id,
                 path: built_path.clone(),
                 points: loaded_mesh_params.points, //TODO
-            })
-            .id();
+            });
 
         // let mat_handle = fill_materials.add(FillMesh2dMaterial {
         //     color: globals.polygon_color.into(),

@@ -1,6 +1,7 @@
 // TODO: delete this example
 
 mod cam;
+pub mod cut;
 pub mod input;
 mod io;
 pub mod material;
@@ -14,6 +15,7 @@ use bevy::{
     sprite::{Material2dPlugin, MaterialMesh2dBundle, Mesh2dHandle},
 };
 use cam::*;
+use cut::*;
 use input::*;
 use io::*;
 use material::*;
@@ -43,24 +45,31 @@ fn main() {
             // vsync: true,
             ..Default::default()
         })
+        //
         // .add_plugin(LogDiagnosticsPlugin::default())
         // .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_event::<StartMakingPolygon>()
+        //
+        // .add_event::<StartMakingPolygon>()
         .add_event::<StartMakingSegment>()
-        .add_event::<EndSegment>()
-        .add_event::<EndMakingPolygon>()
-        .add_event::<DeleteEvent>()
+        // .add_event::<EndSegment>()
+        // .add_event::<EndMakingPolygon>()
+        // .add_event::<DeleteEvent>()
+        .add_event::<Action>()
         .add_event::<QuickLoad>()
+        .add_event::<Load>()
         .add_event::<SaveMeshEvent>()
         .insert_resource(Globals::default())
         .insert_resource(Cursor::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(CamPlugin)
         .add_plugin(FillMesh2dPlugin)
+        .add_plugin(CutMesh2dPlugin)
         .add_plugin(WorldInspectorPlugin::new())
+        .add_plugin(CutPlugin)
         .add_plugin(ObjPlugin)
         .add_startup_system(camera_setup)
         .add_startup_system(setup_mesh)
+        .add_system(delete_making_polygon)
         .add_system(end_polygon)
         .add_system(start_polygon)
         .add_system(record_mouse_events_system.exclusive_system().at_start())
@@ -71,23 +80,22 @@ fn main() {
         .add_system(quick_load_mesh)
         .add_system(quick_save)
         .add_system(glow_poly)
-        .add_system(rotate_poly)
+        .add_system(perform_cut)
+        .add_system(transform_poly.exclusive_system().at_end())
         // .add_system(save_mesh)
         .run();
 }
 
-pub fn setup_mesh(
-    mut commands: Commands,
-    // mut action_event_writer: EventWriter<Action>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
-    mut quickload_event_writer: EventWriter<QuickLoad>,
-    globals: Res<Globals>,
-) {
-    quickload_event_writer.send(QuickLoad);
+pub fn setup_mesh(mut load_event_writer: EventWriter<Load>) {
+    load_event_writer.send(Load("my_mesh7".to_string()));
+    load_event_writer.send(Load("my_mesh6".to_string()));
+    // load_event_writer.send(Load("my_mesh6".to_string()));
 
-    // // action_event_writer.send(Action::QuickLoad);
+    // mut commands: Commands,
+    // // mut action_event_writer: EventWriter<Action>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<ColorMaterial>>,
+    // mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
 
     // /////////////////////////// cutting segment /////////////////////////////
     // let segment = Segment {
@@ -112,33 +120,59 @@ pub fn setup_mesh(
     // /////////////////////////// cutting segment /////////////////////////////
 }
 
+pub enum PossibleMoves {
+    Translation(Vec2),
+    Rotation(f32),
+}
 // use core::num::PI;
 // use lyon::geom::{Rotation, Translation};
 
-// make polygon glow upon hover
+// make polygon glow upon hover and insert Rotating (right mouse click) or
+// Translating (left mouse click) component
 pub fn glow_poly(
     mut commands: Commands,
     mouse_button_input: Res<Input<MouseButton>>,
     cursor: Res<Cursor>,
-    query: Query<(Entity, &Handle<FillMesh2dMaterial>, &Transform, &MeshMeta), With<Polygon>>,
+    query: Query<
+        (
+            Entity,
+            &Handle<FillMesh2dMaterial>,
+            &Transform,
+            &MeshMeta,
+            Option<Or<(&Rotating, &Translating)>>,
+        ),
+        With<Polygon>,
+    >,
     mut materials: ResMut<Assets<FillMesh2dMaterial>>,
 ) {
-    let left_mouse = mouse_button_input.just_pressed(MouseButton::Left);
+    let left_mouse_click = mouse_button_input.just_pressed(MouseButton::Left);
     let right_mouse_click = mouse_button_input.just_pressed(MouseButton::Right);
+    // let mut moving_entity = None;
+    let mut maybe_highlight_entity = None;
 
-    for (entity, material_handle, transform, mesh_meta) in query.iter() {
-        let path = mesh_meta.path.clone();
-        // info!("is clicked");
-        let (axis, transform_rotation_angle) = transform.rotation.to_axis_angle();
-        let angle = axis.z * transform_rotation_angle;
-        // info!("axis: {:?}, angle: {:?}", axis, transform_rotation_angle);
+    let mut maybe_move_entity: Option<(Entity, PossibleMoves)> = None;
 
-        let rot = lyon::geom::Rotation::radians(angle);
-        let translation =
-            lyon::geom::Translation::new(transform.translation.x, transform.translation.y);
+    for (entity, material_handle, transform, mesh_meta, maybe_moving) in query.iter() {
+        //
+        //
+        //
+        // The path is by default centered at the origin, so we need to translate it to the
+        // position of the entity.
+        // let path = mesh_meta.path.clone();
+        // let (axis, transform_rotation_angle) = transform.rotation.to_axis_angle();
+        // let angle = axis.z * transform_rotation_angle;
 
-        // the points are at the origin, so we need to take the translation + rotation into account
-        let transformed_path = path.transformed(&rot).transformed(&translation);
+        // let rot = lyon::geom::Rotation::radians(angle);
+        // let translation =
+        //     lyon::geom::Translation::new(transform.translation.x, transform.translation.y);
+
+        // // the points are at the origin, so we need to take the translation + rotation into account
+        // let transformed_path = path.transformed(&rot).transformed(&translation);
+
+        let (transformed_path, angle) = transform_path(&mesh_meta.path, transform);
+        //
+        //
+        // The path is now translated and rotated. We can now check whether the mouse in inside the path
 
         let is_inside_poly = hit_test_path(
             &cursor.clone().into(),
@@ -148,49 +182,93 @@ pub fn glow_poly(
         );
 
         let mut material = materials.get_mut(&material_handle).unwrap();
+        material.show_com = 0.0;
 
-        if is_inside_poly {
-            material.show_com = 1.0;
-        } else {
-            material.show_com = 0.0;
+        if is_inside_poly && left_mouse_click {
+            maybe_move_entity = Some((
+                entity,
+                PossibleMoves::Translation(transform.translation.truncate()),
+            ));
         }
-
-        // info!("is inside poly: {}", is_inside_poly);
 
         if is_inside_poly && right_mouse_click {
-            commands.entity(entity).insert(Rotating {
-                starting_angle: transform_rotation_angle,
-            });
+            maybe_move_entity = Some((entity, PossibleMoves::Rotation(angle)));
         }
 
-        // material.color = Vec4::new(1.0, 0.0, 0.0, 1.0);
+        if let Some(_) = maybe_moving {
+            maybe_highlight_entity = Some(entity);
+        } else if is_inside_poly {
+            maybe_highlight_entity = Some(entity);
+        }
+    }
+
+    // add Rotating or Translating component to clicked entity
+    if let Some((entity, moves)) = maybe_move_entity {
+        let (_, material_handle, _, _, _) = query.get(entity).unwrap();
+        let mut material = materials.get_mut(&material_handle).unwrap();
+        match moves {
+            PossibleMoves::Translation(translation) => {
+                commands.entity(entity).insert(Translating {
+                    starting_pos: translation,
+                });
+            }
+            PossibleMoves::Rotation(angle) => {
+                commands.entity(entity).insert(Rotating {
+                    starting_angle: angle,
+                });
+            }
+        }
+
+        material.show_com = 1.0;
+    } else if let Some(highlighted_entity) = maybe_highlight_entity {
+        //
+        // if no movement is happening, highlight one entity that is hovered over
+        if let Ok((_, material_handle, _, _, _)) = query.get(highlighted_entity) {
+            let mut material = materials.get_mut(&material_handle).unwrap();
+            material.show_com = 1.0;
+        }
     }
 }
 
-#[derive(Component)]
-pub struct Rotating {
-    pub starting_angle: f32,
-}
-
-// rotate Polygon using right mouse button
-pub fn rotate_poly(
+// translate and rotate Polygon using right mouse button
+pub fn transform_poly(
     mut commands: Commands,
     mouse_button_input: Res<Input<MouseButton>>,
     cursor: Res<Cursor>,
-    mut query: Query<(Entity, &mut Transform, &Rotating), With<Polygon>>,
+    mut queries: ParamSet<(
+        Query<(Entity, &mut Transform, &Rotating), With<Polygon>>,
+        Query<(Entity, &mut Transform, &Translating), With<Polygon>>,
+    )>,
 ) {
-    // if mouse_button_input.pressed(MouseButton::Right) {
-    for (_, mut transform, rotating) in query.iter_mut() {
+    for (_, mut transform, rotating) in queries.p0().iter_mut() {
         // println!("rotating");
-        let vertical_mouse_dist = cursor.position.y - cursor.last_right_click_position.y;
-        transform.rotation =
-            Quat::from_rotation_z(vertical_mouse_dist * 0.0025 + rotating.starting_angle);
+        let diag_mouse_dist = cursor.position.y + cursor.position.x
+            - cursor.last_right_click_position.y
+            - cursor.last_right_click_position.x;
+        // latch the final angle to fixed angles at every pi/25 radians
+        let free_angle = -diag_mouse_dist * 0.0035 + rotating.starting_angle;
+        let angle =
+            (free_angle / (core::f32::consts::PI / 25.0)).round() * (core::f32::consts::PI / 25.0);
+        transform.rotation = Quat::from_rotation_z(angle);
     }
-    // }
+
+    for (_, mut transform, translating) in queries.p1().iter_mut() {
+        // println!("rotating");
+        let mouse_delta = cursor.position - cursor.last_click_position;
+        transform.translation =
+            (translating.starting_pos + mouse_delta).extend(transform.translation.z);
+    }
+
+    if mouse_button_input.just_released(MouseButton::Left) {
+        // remove Translating
+        for (entity, _, _) in queries.p1().iter_mut() {
+            commands.entity(entity).remove::<Translating>();
+        }
+    }
 
     if mouse_button_input.just_released(MouseButton::Right) {
         // remove Rotating
-        for (entity, _, _) in query.iter_mut() {
+        for (entity, _, _) in queries.p0().iter_mut() {
             commands.entity(entity).remove::<Rotating>();
         }
     }

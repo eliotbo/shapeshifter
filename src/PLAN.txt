@@ -8,7 +8,6 @@ create new repo online from local repo
 
 
 
-
 Worlds in order of difficulty
 0) Simplicity 
 1) Convexity
@@ -29,3 +28,5 @@ Each section has its own theme
 
 
 Make a better rounded look: at every point, but a bezier curve to round off the edges
+----limit the area of a new polygon after a cut (cannot make a new polygon that is
+    too small)
