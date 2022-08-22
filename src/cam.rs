@@ -66,8 +66,8 @@ pub fn camera_movevement_system(
     mut transforms: ParamSet<(Query<(&Cam, &mut Transform)>,)>,
 ) {
     let mut cam_query = transforms.p0();
-    let mut velocity = Vec3::ZERO;
-    let mut do_move_cam = false;
+    // let mut velocity = Vec3::ZERO;
+    // let mut do_move_cam = false;
     for (cam, mut transform) in cam_query.iter_mut() {
         let (axis_side, axis_up) = if cam.enabled {
             (
@@ -78,11 +78,11 @@ pub fn camera_movevement_system(
             (0.0, 0.0)
         };
 
-        if axis_side.abs() > 0.0000001 || axis_up.abs() > 0.0000001 {
-            do_move_cam = true;
-        }
+        // if axis_side.abs() > 0.0000001 || axis_up.abs() > 0.0000001 {
+        //     do_move_cam = true;
+        // }
 
-        velocity = Vec3::new(axis_side * cam.speed, axis_up * cam.speed, 0.0);
+        let velocity = Vec3::new(axis_side * cam.speed, axis_up * cam.speed, 0.0);
 
         transform.translation += velocity;
     }

@@ -6,12 +6,9 @@ use crate::util::*;
 use bevy::{
     prelude::*,
     render::{mesh::Indices, render_resource::PrimitiveTopology},
-    sprite::{Material2dPlugin, MaterialMesh2dBundle, Mesh2dHandle},
+    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
 };
 
-use core::cmp::Ordering;
-
-use lyon::algorithms::raycast::*;
 use lyon::path::path::BuilderImpl;
 use lyon::tessellation::geometry_builder::simple_builder;
 use lyon::tessellation::math::{point, Point};
@@ -20,22 +17,17 @@ use lyon::tessellation::{FillOptions, FillTessellator, VertexBuffers};
 
 use rand::{thread_rng, Rng};
 
-pub fn make_square() -> (Path, Vec<Vec2>) {
-    let mut path = Path::builder();
-    path.begin(point(0.0, 0.0));
-    path.line_to(point(100.0, 0.0));
-    path.line_to(point(100.0, 100.0));
-    path.line_to(point(0.0, 100.0));
-    path.close();
-    let built_path = path.build();
+pub struct PolyPlugin;
 
-    let mut points = Vec::new();
-    points.push(Vec2::new(0.0, 0.0));
-    points.push(Vec2::new(100.0, 0.0));
-    points.push(Vec2::new(100.0, 100.0));
-    points.push(Vec2::new(0.0, 100.0));
-
-    (built_path, points)
+impl Plugin for PolyPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_system(delete_making_polygon)
+            .add_system(end_polygon)
+            .add_system(start_polygon)
+            .add_system(making_segment)
+            .add_system(end_segment)
+            .add_system(start_poly_segment);
+    }
 }
 
 pub struct StartMakingSegment {
@@ -59,8 +51,6 @@ pub struct MakingPolygon {
     pub starting_point: Point,
     pub all_points: Vec<Vec2>,
 }
-
-// pub struct EndMakingPolygon;
 
 pub fn start_poly_segment(
     mut commands: Commands,
@@ -86,7 +76,6 @@ pub fn start_poly_segment(
 
     if let Some(start) = maybe_pos {
         for parent_polygon in query.iter() {
-            // let start = point(pos.x, pos.y);
             let segment = Segment {
                 start,
                 end: cursor.clone().into(),
@@ -129,8 +118,6 @@ pub fn start_polygon(
 ) {
     // for start_poly in start_polygon_event_reader.iter() {
     if let Some(Action::StartMakingPolygon { pos }) = action_event_reader.iter().next() {
-        // info!("start polygon:  {:?}", start_poly.pos);
-        // let start = point(pos.x, pos.y);
         let segment = Segment {
             start: *pos,
             end: cursor.clone().into(),
@@ -188,7 +175,6 @@ pub fn making_segment(
     cursor: Res<Cursor>,
 ) {
     for (mut transform, mesh_handle, making_segment) in query.iter_mut() {
-        // info!("making polygon");
         let mesh = meshes.get_mut(&mesh_handle.0).unwrap();
 
         let segment = Segment {
@@ -219,8 +205,6 @@ pub fn end_segment(
     mut polygon_query: Query<&mut MakingPolygon>,
     mut meshes: ResMut<Assets<Mesh>>,
     globals: Res<Globals>,
-    // cursor: Res<Cursor>,
-    // mut end_segment_event_reader: EventReader<EndSegment>,
     mut action_event_reader: EventReader<Action>,
     mut start_segment_event_writer: EventWriter<StartMakingSegment>,
 ) {
@@ -239,7 +223,6 @@ pub fn end_segment(
             making_polygon.path.line_to(*pos);
             making_polygon.all_points.push(Vec2::new(pos.x, pos.y));
 
-            info!("end segment at pos: {:?}", pos);
             let mesh = meshes.get_mut(&mesh_handle.0).unwrap();
 
             let segment = Segment {
@@ -269,7 +252,6 @@ pub fn delete_making_polygon(
     mut action_event_reader: EventReader<Action>,
     polygon_query: Query<(Entity, &MakingPolygon)>,
 ) {
-    // for _ in end_polygon_event_reader.iter() {
     if let Some(Action::Delete) = action_event_reader.iter().next() {
         for (entity, _) in polygon_query.iter() {
             commands.entity(entity).despawn_recursive();
@@ -282,65 +264,25 @@ pub fn end_polygon(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
-    mut current_segment_query: Query<(
-        Entity,
-        &mut Transform,
-        &Mesh2dHandle,
-        &MakingSegment,
-        // &MakingPolygon,
-    )>,
-    // mut segments_query: Query<Entity, With<PolySegmentComponent>>,
-    // mut end_polygon_event: EventReader<EndMakingPolygon>,
     mut action_event_reader: EventReader<Action>,
     mut polygon_query: Query<(Entity, &mut MakingPolygon)>,
     globals: Res<Globals>,
 ) {
-    // for _ in end_polygon_event.iter() {
+    //
+    //
     if let Some(Action::EndMakingPolygon) = action_event_reader.iter().next() {
-        // spawn last segment
-
+        //
         // There is only one MakingPolygon at a time
         for (entity, mut poly) in polygon_query.iter_mut() {
             //
             //
             // end point of last segment must be the same as the starting point
-            // close the polygon using the last segment
-
-            // {
-            //     // There only is one MakingSegment at a time
-            //     let (segment_entity, mut transform, mesh_handle, making_segment) =
-            //         current_segment_query.single_mut();
-            //     //
-            //     //
-            //     let segment = Segment {
-            //         start: making_segment.start,
-            //         end: poly.starting_point,
-            //     };
-            //     let segment_meta = get_segment_meta(segment);
-
-            //     let mesh = meshes.get_mut(&mesh_handle.0).unwrap();
-            //     *mesh = Mesh::from(shape::Quad::new(Vec2::new(
-            //         segment_meta.length,
-            //         globals.cutting_segment_thickness,
-            //     )));
-
-            //     // *transform = segment_meta.transform;
-            //     // commands.entity(segment_entity).remove::<MakingSegment>();
-            // }
-
-            // //
-            // //
-            // //
-            // // remove the segments
-            // for segment_entity in segments_query.iter_mut() {
-            //     commands.entity(segment_entity).despawn();
-            // }
-
+            // close the polygon using the last segment.
+            //
             // add last segment to close the polygon
             poly.path.close();
 
             let path = poly.path.clone().build();
-            println!("path: {:?}", path);
 
             // the path is shifted to the origin and the mesh transform is moved instead
             let (mesh, center_of_mass) = make_polygon_mesh(&path, &globals.polygon_color);

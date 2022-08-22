@@ -6,17 +6,12 @@ use crate::util::*;
 
 use bevy::{
     prelude::*,
-    render::{mesh::Indices, render_resource::PrimitiveTopology},
-    sprite::{Material2dPlugin, MaterialMesh2dBundle, Mesh2dHandle},
+    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
 };
 
 use lyon::algorithms::raycast::*;
-use lyon::path::path::BuilderImpl;
-use lyon::tessellation::geometry_builder::simple_builder;
-use lyon::tessellation::path::{builder::NoAttributes, Path};
-use lyon::tessellation::{FillOptions, FillTessellator, VertexBuffers};
-
 use lyon::tessellation::math::{point, Point};
+use lyon::tessellation::path::Path;
 
 use rand::{thread_rng, Rng};
 
@@ -37,14 +32,10 @@ pub struct CutPlugin;
 
 impl Plugin for CutPlugin {
     fn build(&self, app: &mut App) {
-        app
-        // .add_event::<StartMakingCutSegment>()
-        //     .add_event::<EndCutSegment>()
-            .add_system(start_cut_segment)
+        app.add_system(start_cut_segment)
             .add_system(end_cut_segment)
             .add_system(making_cut_segment)
-            // ok
-            ;
+            .add_system(perform_cut);
     }
 }
 
@@ -172,11 +163,10 @@ impl PolyPoint {
 
 use crate::poly::Polygon;
 use lyon::algorithms::math::Vector;
-use lyon::algorithms::raycast::*;
+// use lyon::algorithms::raycast::*;
 
 pub fn perform_cut(
     mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 
     mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
@@ -187,7 +177,7 @@ pub fn perform_cut(
     >,
 ) {
     for (cut_entity, cut) in cut_query.iter() {
-        for (poly_entity, material_handle, transform, mesh_meta) in polygon_query.iter_mut() {
+        for (poly_entity, _material_handle, transform, mesh_meta) in polygon_query.iter_mut() {
             //
             commands.entity(cut_entity).remove::<JustMadeCut>();
             //
@@ -202,280 +192,255 @@ pub fn perform_cut(
 
             let maybe_hit = raycast_path(&ray, transformed_path.clone().iter(), 0.1);
 
-            if let Some(hit) = maybe_hit {
-                info!("hit: {:?}", hit.position);
+            // only compute the cut if the ray from the cut hits the polygon
+            if let None = maybe_hit {
+                continue;
+            }
+            let mut points: Vec<PolyPoint> = Vec::new();
 
-                let mut points: Vec<PolyPoint> = Vec::new();
-
-                for (k, segs) in transformed_path.iter().enumerate() {
-                    if k == 0 {
-                        continue;
-                    }
-
-                    // println!("point: {:?}", mesh_meta.points[k - 1]);
-                    // info!("seg: {:?}", segs);
-                    let segment = Segment {
-                        start: segs.from(),
-                        end: segs.to(),
-                    };
-
-                    let intersection = segment.intersect(cut.segment.clone());
-
-                    points.push(PolyPoint::Original(segs.from()));
-                    if let Some(intersection) = intersection {
-                        points.push(PolyPoint::Intersect(intersection));
-                    }
-
-                    // info!("intersection: {:?}", intersection);
+            for (k, segs) in transformed_path.iter().enumerate() {
+                if k == 0 {
+                    continue;
                 }
 
-                let mut only_intersects: Vec<(usize, &Point)> = points
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, x)| x.is_intersect())
-                    .map(|(k, x)| {
-                        if let PolyPoint::Intersect(y) = x {
-                            (k, y)
+                // println!("point: {:?}", mesh_meta.points[k - 1]);
+                // info!("seg: {:?}", segs);
+                let segment = Segment {
+                    start: segs.from(),
+                    end: segs.to(),
+                };
+
+                let intersection = segment.intersect(cut.segment.clone());
+
+                points.push(PolyPoint::Original(segs.from()));
+                if let Some(intersection) = intersection {
+                    points.push(PolyPoint::Intersect(intersection));
+                }
+
+                // info!("intersection: {:?}", intersection);
+            }
+
+            let mut only_intersects: Vec<(usize, &Point)> = points
+                .iter()
+                .enumerate()
+                .filter(|(_, x)| x.is_intersect())
+                .map(|(k, x)| {
+                    if let PolyPoint::Intersect(y) = x {
+                        (k, y)
+                    } else {
+                        panic!("should not happen")
+                    }
+                })
+                // .cloned()
+                .collect();
+
+            // println!("only_intersects: {:#?}", only_intersects);
+
+            // if the number of intersection is odd, the cut is invalid because,
+            // the polygon cannot be separated properly
+            let num_intersects = only_intersects.len();
+            if num_intersects % 2 == 1 || num_intersects < 2 {
+                println!("nope");
+                // remove the cut entity
+                commands.entity(cut_entity).despawn();
+                return;
+            } else {
+                // remove the polygon that was cut
+                commands.entity(poly_entity).despawn();
+            }
+
+            // detect along which axis the intersections vary most from each other,
+            // so that this axis can be used to sort the intersections
+            let delta = (*only_intersects[1].1 - *only_intersects[0].1).abs();
+
+            // sort intersects by distance along the cut segment
+            only_intersects.sort_by(|(_, a), (_, b)| {
+                if delta.x > delta.y {
+                    a.x.partial_cmp(&b.x).unwrap()
+                } else {
+                    a.y.partial_cmp(&b.y).unwrap()
+                }
+            });
+
+            //
+            //
+            //
+            //
+            // // visual check for whether the intersects are positioned and sorted correctly
+            // let mut rng = thread_rng();
+            // let mut r = rng.gen::<f32>();
+            // let mut b = rng.gen::<f32>();
+            // let mut g = rng.gen::<f32>();
+            // for (k, inter) in only_intersects.iter().enumerate() {
+            //     let pos = Vec2::new(inter.1.x, inter.1.y);
+
+            //     if k % 2 == 0 {
+            //         // println!("odd");
+            //         r = rng.gen::<f32>();
+            //         b = rng.gen::<f32>();
+            //         g = rng.gen::<f32>();
+            //     }
+
+            //     let ends_mesh_handle = bevy::sprite::Mesh2dHandle(
+            //         meshes.add(Mesh::from(shape::Quad::new(Vec2::new(10., 10.)))),
+            //     );
+
+            //     commands.spawn_bundle(MaterialMesh2dBundle {
+            //         mesh: ends_mesh_handle.clone(),
+            //         material: materials.add(ColorMaterial::from(Color::rgb(r, b, g))),
+            //         transform: Transform::from_translation(pos.extend(200.0)),
+            //         ..Default::default()
+            //     });
+            // }
+
+            // make pairs of intersects
+            let mut pairs: Vec<(usize, usize)> = Vec::new();
+            for (k, inter) in only_intersects.iter().enumerate() {
+                if k % 2 == 0 {
+                    continue;
+                }
+
+                let prev = only_intersects[k - 1].0;
+                let curr = inter.0;
+
+                pairs.push((prev, curr));
+            }
+
+            // take only the indices of intersects
+            let intersects_inds: Vec<usize> = only_intersects.iter().map(|x| x.0).collect();
+
+            let num_points_in_cut_poly = points.len();
+
+            // let new_polygons: BinaryTree<Vec<PolyPoint>> = BinaryTree::new(points.clone());
+
+            // polygons to operate on at every loop iteration
+            let mut polys: Vec<Vec<usize>> = vec![(0..num_points_in_cut_poly).collect()];
+
+            // polygons that are known to be closed
+            let mut closed_polys: Vec<Vec<PolyPoint>> = Vec::new();
+
+            for (idx, pair) in pairs.iter().enumerate() {
+                // info!("pair idx: {:?}", idx);
+
+                let k0 = pair.0;
+                let k1 = pair.1;
+
+                let rest_of_intersects_inds = intersects_inds.clone().split_off((idx + 1) * 2);
+
+                let mut new_polys_to_explore: Vec<Vec<usize>> = vec![];
+                for poly in polys.clone() {
+                    if poly_contains_intersect(&poly, &vec![k0, k1]) {
+                        // info!("poly contains intersect : {:?}", &vec![k0, k1]);
+                        // check if poly contains the current intersects
+                        let (poly_a, poly_b) = split_poly_at(&poly, k0, k1);
+                        // let (pa, pb) = get_split_poly(&poly, k0, k1);
+
+                        // check if the new polys contains any of the remaining intersect indices
+                        // if it does, then it is not closed
+                        let do_poly_a = poly_contains_intersect(&poly_a, &rest_of_intersects_inds);
+                        let do_poly_b = poly_contains_intersect(&poly_b, &rest_of_intersects_inds);
+
+                        if do_poly_a {
+                            new_polys_to_explore.push(poly_a);
                         } else {
-                            panic!("should not happen")
+                            closed_polys.push(get_poly_points(&poly_a, &points));
                         }
+                        if do_poly_b {
+                            new_polys_to_explore.push(poly_b);
+                        } else {
+                            closed_polys.push(get_poly_points(&poly_b, &points));
+                        }
+                    }
+                }
+
+                polys = new_polys_to_explore;
+            }
+
+            //
+            //
+            // crate one path for every closed polygon
+            for poly in closed_polys {
+                //
+                //
+                // convert PolyPoint to Point for every element of poly
+                let poly_points: Vec<Point> = poly
+                    .iter()
+                    .map(|x| match x {
+                        PolyPoint::Original(p) => *p,
+                        PolyPoint::Intersect(i) => *i,
                     })
-                    // .cloned()
                     .collect();
 
-                // println!("only_intersects: {:#?}", only_intersects);
+                //
+                //
+                //
+                // initialize the new path
+                let mut path = Path::builder();
 
-                // if the number of intersection is odd, the cut is invalid because,
-                // the polygon cannot be separated properly
-                let num_intersects = only_intersects.len();
-                if num_intersects % 2 == 1 || num_intersects < 2 {
-                    println!("nope");
-                    // remove the cut entity
-                    commands.entity(cut_entity).despawn();
-                    return;
-                }
-
-                // detect along which axis the intersections vary most from each other,
-                // so that this axis can be used to sort the intersections
-                let delta = (*only_intersects[1].1 - *only_intersects[0].1).abs();
-
-                // sort intersects by distance along the cut segment
-                only_intersects.sort_by(|(_, a), (_, b)| {
-                    if delta.x > delta.y {
-                        a.x.partial_cmp(&b.x).unwrap()
+                let mut all_points = vec![];
+                for (k, point) in poly_points.iter().enumerate() {
+                    if k == 0 {
+                        path.begin(*point);
+                        all_points.push(Vec2::new(point.x, point.y));
                     } else {
-                        a.y.partial_cmp(&b.y).unwrap()
+                        path.line_to(*point);
+                        all_points.push(Vec2::new(point.x, point.y));
                     }
+                }
+                path.close();
+                let built_path = path.build();
+
+                let (mesh, center_of_mass) = make_polygon_mesh(&built_path, &Color::TEAL);
+
+                // Useless at the moment, but here for future use
+                let mat_handle = fill_materials.add(FillMesh2dMaterial {
+                    color: Color::TEAL.into(),
+                    show_com: 0.0, // show center of mass
                 });
 
-                //
-                //
-                //
-                //
-                // visual check for whether the intersects are positioned and sorted correctly
+                let translation =
+                    lyon::geom::Translation::new(-center_of_mass.x, -center_of_mass.y);
+                let transformed_path = built_path.transformed(&translation);
+
                 let mut rng = thread_rng();
-                let mut r = rng.gen::<f32>();
-                let mut b = rng.gen::<f32>();
-                let mut g = rng.gen::<f32>();
-                for (k, inter) in only_intersects.iter().enumerate() {
-                    let pos = Vec2::new(inter.1.x, inter.1.y);
+                // let id = rng.gen::<u64>();
 
-                    if k % 2 == 0 {
-                        // println!("odd");
-                        r = rng.gen::<f32>();
-                        b = rng.gen::<f32>();
-                        g = rng.gen::<f32>();
-                    }
+                let fill_transform =
+                    Transform::from_translation(center_of_mass.extend(rng.gen::<f32>() + 1.0));
 
-                    let ends_mesh_handle = bevy::sprite::Mesh2dHandle(
-                        meshes.add(Mesh::from(shape::Quad::new(Vec2::new(10., 10.)))),
-                    );
-
-                    commands.spawn_bundle(MaterialMesh2dBundle {
-                        mesh: ends_mesh_handle.clone(),
-                        material: materials.add(ColorMaterial::from(Color::rgb(r, b, g))),
-                        transform: Transform::from_translation(pos.extend(200.0)),
+                commands
+                    .spawn_bundle(MaterialMesh2dBundle {
+                        mesh: Mesh2dHandle(meshes.add(mesh)),
+                        material: mat_handle,
+                        transform: fill_transform,
                         ..Default::default()
-                    });
-                }
-
-                // make pairs of intersects
-                let mut pairs: Vec<(usize, usize)> = Vec::new();
-                for (k, inter) in only_intersects.iter().enumerate() {
-                    if k % 2 == 0 {
-                        continue;
-                    }
-
-                    let prev = only_intersects[k - 1].0;
-                    let curr = inter.0;
-
-                    pairs.push((prev, curr));
-                }
-
-                // take only the indices of intersects
-                let intersects_inds: Vec<usize> = only_intersects.iter().map(|x| x.0).collect();
-
-                // start with a single pair of intersects
-                // let pair = (only_intersects[0], only_intersects[1]);
-                info!("pair: {:?}", pairs[0]);
-
-                // find the first polygon
-                // we start from only_intersects[0], and we make our way to only_intersects[1] alone
-                // the two different directions
-                // let idx = only_intersects[0].0;
-                // let first_poly_indices =
-                //     (only_intersects[0].0..only_intersects[1].0).collect::<Vec<usize>>();
-
-                // first cut
-
-                let l = points.len();
-                info!("NUMBER points: {:?}", l);
-
-                let mut idx: usize = 0;
-
-                // let new_polygons: BinaryTree<Vec<PolyPoint>> = BinaryTree::new(points.clone());
-
-                // polygons to operate on at every loop iteration
-                let mut polys: Vec<Vec<usize>> = vec![(0..l).collect()];
-
-                // polygons that are known to be closed
-                let mut closed_polys: Vec<Vec<PolyPoint>> = Vec::new();
-
-                for (idx, pair) in pairs.iter().enumerate() {
-                    info!("pair idx: {:?}", idx);
-
-                    let k0 = pair.0;
-                    let k1 = pair.1;
-
-                    let rest_of_intersects_inds = intersects_inds.clone().split_off((idx + 1) * 2);
-
-                    let mut new_polys_to_explore: Vec<Vec<usize>> = vec![];
-                    for poly in polys.clone() {
-                        if poly_contains_intersect(&poly, &vec![k0, k1]) {
-                            info!("poly contains intersect : {:?}", &vec![k0, k1]);
-                            // check if poly contains the current intersects
-                            let (poly_a, poly_b) = split_poly_at(&poly, k0, k1);
-                            // let (pa, pb) = get_split_poly(&poly, k0, k1);
-
-                            info!("poly_a: {:?}", poly_a);
-                            // info!("pa: {:?}", pa);
-                            info!("poly_b: {:?}", poly_b);
-                            // info!("pb: {:?}", pb);
-
-                            // check if the new polys contains any of the remaining intersect indices
-                            // if it does, then it is not closed
-                            let do_poly_a =
-                                poly_contains_intersect(&poly_a, &rest_of_intersects_inds);
-
-                            let do_poly_b =
-                                poly_contains_intersect(&poly_b, &rest_of_intersects_inds);
-
-                            info!("do_poly_a: {}", do_poly_a);
-                            info!("do_poly_b: {}", do_poly_b);
-
-                            if do_poly_a {
-                                new_polys_to_explore.push(poly_a);
-                            } else {
-                                closed_polys.push(get_poly_points(&poly_a, &points));
-                            }
-                            if do_poly_b {
-                                new_polys_to_explore.push(poly_b);
-                            } else {
-                                closed_polys.push(get_poly_points(&poly_b, &points));
-                            }
-
-                            // let do_poly_b = poly_contains_intersect(
-                            //     poly_b,
-                            //     intersects_inds[idx..].iter().collect(),
-                            // );
-                        }
-                    }
-
-                    polys = new_polys_to_explore;
-
-                    // if idx == intersects_inds.len() - 1 {
-                    //     // we are done
-                    //     info!("done");
-                    //     break;
-                    // }
-                }
-
-                // crate one path for every closed polygon
-                for poly in closed_polys {
-                    // convert PolyPoint to Point for every element of poly
-                    let poly_points: Vec<Point> = poly
-                        .iter()
-                        .map(|x| {
-                            match x {
-                                PolyPoint::Original(p) => *p,
-                                PolyPoint::Intersect(i) => *i,
-                            }
-                            // Point::new(x.x as f64, x.y as f64)
-                        })
-                        .collect();
-
-                    let mut path = Path::builder();
-
-                    let mut all_points = vec![];
-                    for (k, point) in poly_points.iter().enumerate() {
-                        if k == 0 {
-                            path.begin(*point);
-                            all_points.push(Vec2::new(point.x, point.y));
-                        } else {
-                            path.line_to(*point);
-                            all_points.push(Vec2::new(point.x, point.y));
-                        }
-                    }
-                    path.close();
-                    let built_path = path.build();
-
-                    let (mesh, center_of_mass) = make_polygon_mesh(&built_path, &Color::TEAL);
-
-                    // Useless at the moment, but here for future use
-                    let mat_handle = fill_materials.add(FillMesh2dMaterial {
-                        color: Color::TEAL.into(),
-                        show_com: 0.0, // show center of mass
+                    })
+                    .insert(Polygon)
+                    .insert(MeshMeta {
+                        id: rng.gen::<u64>(),
+                        path: transformed_path.clone(),
+                        // move points towards the origin
+                        points: all_points
+                            .clone()
+                            .iter()
+                            .map(|x| *x - center_of_mass)
+                            .collect(),
                     });
 
-                    let translation =
-                        lyon::geom::Translation::new(-center_of_mass.x, -center_of_mass.y);
-                    let transformed_path = built_path.transformed(&translation);
-
-                    let mut rng = thread_rng();
-                    // let id = rng.gen::<u64>();
-
-                    let fill_transform =
-                        Transform::from_translation(center_of_mass.extend(rng.gen::<f32>() + 1.0));
-
-                    commands
-                        .spawn_bundle(MaterialMesh2dBundle {
-                            mesh: Mesh2dHandle(meshes.add(mesh)),
-                            material: mat_handle,
-                            transform: fill_transform,
-                            ..Default::default()
-                        })
-                        .insert(Polygon)
-                        .insert(MeshMeta {
-                            id: rng.gen::<u64>(),
-                            path: transformed_path.clone(),
-                            // move points towards the origin
-                            points: all_points
-                                .clone()
-                                .iter()
-                                .map(|x| *x - center_of_mass)
-                                .collect(),
-                        });
-
-                    // commands.spawn_bundle(PathBundle {
-                    //     path,
-                    //     style: PathStyle {
-                    //         stroke_width: 1.0,
-                    //         stroke_color: Color::rgb(r, b, g),
-                    //         fill_color: Color::rgb(r, b, g),
-                    //     },
-                    //     ..Default::default()
-                    // });
-                }
+                //
+                //
+                // TODO: contour
+                //
+                //
+                // commands.spawn_bundle(PathBundle {
+                //     path,
+                //     style: PathStyle {
+                //         stroke_width: 1.0,
+                //         stroke_color: Color::rgb(r, b, g),
+                //         fill_color: Color::rgb(r, b, g),
+                //     },
+                //     ..Default::default()
+                // });
             }
         }
     }
@@ -524,14 +489,6 @@ pub fn get_split_poly(indices: &Vec<usize>, k0: usize, k1: usize) -> (Vec<usize>
     };
 
     (poly_a, poly_b)
-
-    // if k0 > k1 {
-    //     let mut temp = (k0..l).collect::<Vec<usize>>();
-    //     temp.extend((0..k1 + 1).collect::<Vec<usize>>());
-    //     temp
-    // } else {
-    //     (k0..k1 + 1).collect::<Vec<usize>>()
-    // }
 }
 
 // TODO: figure out how to to do, but with ranges instead loops (see get_split_poly)
@@ -539,16 +496,12 @@ pub fn split_poly_at(indices: &Vec<usize>, k0: usize, k1: usize) -> (Vec<usize>,
     let mut poly_a = Vec::new();
     let mut poly_b = Vec::new();
 
-    // find the index of k0 and k1 in indices
+    // find the index of k0 in indices
     let mut k0_idx = 0;
-    let mut k1_idx = 0;
 
     for (idx, ind) in indices.iter().enumerate() {
         if *ind == k0 {
             k0_idx = idx;
-        }
-        if *ind == k1 {
-            k1_idx = idx;
         }
     }
 
@@ -596,28 +549,3 @@ pub fn get_poly_points(poly: &Vec<usize>, points: &Vec<PolyPoint>) -> Vec<PolyPo
 
     poly_points
 }
-
-// pub struct BinaryTree<T> {
-//     pub value: T,
-//     pub left: Option<Box<BinaryTree<T>>>,
-//     pub right: Option<Box<BinaryTree<T>>>,
-// }
-
-// impl<T> BinaryTree<T> {
-//     pub fn new(value: T) -> Self {
-//         BinaryTree {
-//             value,
-//             left: None,
-//             right: None,
-//         }
-//     }
-//     pub fn left(mut self, node: BinaryTree<T>) -> Self {
-//         self.left = Some(Box::new(node));
-//         self
-//     }
-
-//     pub fn right(mut self, node: BinaryTree<T>) -> Self {
-//         self.right = Some(Box::new(node));
-//         self
-//     }
-// }

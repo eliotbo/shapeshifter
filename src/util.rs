@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use lyon::tessellation::math::{point, Point};
-use lyon::tessellation::path::{builder::NoAttributes, Path};
+use lyon::tessellation::path::Path;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -10,6 +10,7 @@ pub struct Globals {
     pub polygon_color: Color,
     pub cutting_segment_thickness: f32,
     pub cutting_segment_color: Color,
+    pub min_turn_angle: f32,
 }
 
 impl Default for Globals {
@@ -19,6 +20,7 @@ impl Default for Globals {
             polygon_color: Color::PURPLE,
             cutting_segment_thickness: 4.0,
             cutting_segment_color: Color::ORANGE,
+            min_turn_angle: core::f32::consts::PI / 25.0,
         }
     }
 }
@@ -137,3 +139,21 @@ pub fn transform_path(path: &Path, transform: &Transform) -> (Path, f32) {
 
     return (transformed_path, angle);
 }
+
+// pub fn make_square() -> (Path, Vec<Vec2>) {
+//     let mut path = Path::builder();
+//     path.begin(point(0.0, 0.0));
+//     path.line_to(point(100.0, 0.0));
+//     path.line_to(point(100.0, 100.0));
+//     path.line_to(point(0.0, 100.0));
+//     path.close();
+//     let built_path = path.build();
+
+//     let mut points = Vec::new();
+//     points.push(Vec2::new(0.0, 0.0));
+//     points.push(Vec2::new(100.0, 0.0));
+//     points.push(Vec2::new(100.0, 100.0));
+//     points.push(Vec2::new(0.0, 100.0));
+
+//     (built_path, points)
+// }

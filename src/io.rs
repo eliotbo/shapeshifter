@@ -3,16 +3,9 @@ use bevy::{
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
 };
 
-use crate::input::*;
 use crate::material::FillMesh2dMaterial;
 use crate::poly::Polygon;
 use crate::util::*;
-
-use serde::Deserialize;
-use serde::Serialize;
-
-use std::collections::HashMap;
-use std::collections::HashSet;
 
 use std::fs::File;
 use std::io::Read;
@@ -22,7 +15,7 @@ use rand::{thread_rng, Rng};
 
 use std::path::PathBuf;
 
-use lyon::tessellation::math::{point, Point};
+use lyon::tessellation::math::Point;
 use lyon::tessellation::path::{builder::NoAttributes, path::BuilderImpl, Path};
 
 pub struct QuickLoad;
@@ -102,27 +95,6 @@ pub fn quick_load_mesh(
                 path: built_path.clone(),
                 points: loaded_mesh_params.points, //TODO
             });
-
-        // let mat_handle = fill_materials.add(FillMesh2dMaterial {
-        //     color: globals.polygon_color.into(),
-        //     show_com: 0.0, // show center of mass
-        // });
-
-        // let id = rng.gen::<u64>();
-        // let entity = commands
-        //     .spawn_bundle(MaterialMesh2dBundle {
-        //         mesh: Mesh2dHandle(meshes.add(mesh)),
-        //         material: mat_handle,
-        //         transform: fill_transform,
-        //         ..default()
-        //     })
-        //     .insert(Polygon)
-        //     .insert(MeshMeta {
-        //         id,
-        //         path: path.clone(),
-        //         points: poly.all_points.clone(),
-        //     })
-        //     .id();
     }
 }
 
@@ -161,17 +133,14 @@ pub fn quick_load_mesh(
 pub struct SaveMeshEvent;
 
 pub fn quick_save(
-    // polygon_query: Query<&MakingPolygon>,
     mesh_query: Query<(&Mesh2dHandle, &MeshMeta), With<Polygon>>,
-    // fill_mats: Res<Assets<FillMesh2dMaterial>>,
     meshes: Res<Assets<Mesh>>,
-    // globals: ResMut<Globals>,
     mut action_event_reader: EventReader<SaveMeshEvent>,
 ) {
     for _ in action_event_reader.iter() {
         //
         for (mesh_handle, mesh_meta) in mesh_query.iter() {
-            let (free_save_path_obj, k) =
+            let (free_save_path_obj, _k) =
                 get_free_save_name("my_mesh".to_string(), "obj".to_string());
             println!("free_save_path : {:?}", free_save_path_obj);
 

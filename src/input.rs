@@ -1,32 +1,13 @@
 use bevy::{
-    input::mouse::{MouseButton, MouseButtonInput, MouseMotion, MouseWheel},
+    input::mouse::{MouseButton, MouseWheel},
     prelude::*,
 };
 
 use crate::cut::*;
 use crate::io::{QuickLoad, SaveMeshEvent};
 use crate::poly::{MakingPolygon, MakingSegment};
-use crate::util::*;
 
 use lyon::tessellation::math::Point;
-
-// pub struct StartMakingCutSegment {
-//     pub start: Vec2,
-// }
-
-// pub struct EndCutSegment {
-//     pub end: Vec2,
-// }
-
-// pub struct StartMakingPolygon {
-//     pub pos: Point,
-// }
-// pub struct StartMakingSegment {
-//     pub pos: Point,
-// }
-// pub struct EndSegment {
-//     pub pos: Point,
-// }
 
 pub enum Action {
     StartMakingPolygon { pos: Point },
@@ -35,6 +16,7 @@ pub enum Action {
     EndSegment { pos: Point },
     StartMakingCutSegment { start: Vec2 },
     EndCutSegment { end: Vec2 },
+    RotateAt { pos: Vec2, dir: f32 },
     Delete,
 }
 
@@ -129,7 +111,7 @@ pub fn direct_make_polygon_action(
     making_cut_query: Query<(Entity, &MakingCutSegment)>,
     keyboard_input: Res<Input<KeyCode>>,
     mouse_button_input: Res<Input<MouseButton>>,
-    // mut mouse_wheel_events: EventReader<MouseWheel>,
+    mut mouse_wheel_events: EventReader<MouseWheel>,
     mut quickload_event_writer: EventWriter<QuickLoad>,
 
     // mut start_polygon: EventWriter<StartMakingPolygon>,
@@ -142,21 +124,22 @@ pub fn direct_make_polygon_action(
     // mut end_cut_segment: EventWriter<EndCutSegment>,
     cursor: Res<Cursor>,
 ) {
-    let mouse_pressed = mouse_button_input.pressed(MouseButton::Left);
+    // let mouse_pressed = mouse_button_input.pressed(MouseButton::Left);
 
     let mouse_just_pressed = mouse_button_input.just_pressed(MouseButton::Left);
     let mouse_right_just_pressed = mouse_button_input.just_pressed(MouseButton::Right);
 
-    // let mut mouse_wheel_up = false;
-    // let mut mouse_wheel_down = false;
-    // if let Some(mouse_wheel) = mouse_wheel_events.iter().next() {
-    //     if mouse_wheel.y > 0.5 {
-    //         mouse_wheel_up = true;
-    //     }
-    //     if mouse_wheel.y < -0.5 {
-    //         mouse_wheel_down = true;
-    //     }
-    // }
+    let mut mouse_wheel_up = false;
+    let mut mouse_wheel_down = false;
+    if let Some(mouse_wheel) = mouse_wheel_events.iter().next() {
+        if mouse_wheel.y > 0.5 {
+            info!("mouse wheel up");
+            mouse_wheel_up = true;
+        }
+        if mouse_wheel.y < -0.5 {
+            mouse_wheel_down = true;
+        }
+    }
 
     // only used for pattern matching
     let _pressed_g = keyboard_input.just_pressed(KeyCode::G);
@@ -227,8 +210,14 @@ pub fn direct_make_polygon_action(
         (true, true, false) if _pressed_h => {}
         (false, true, false) if _pressed_z => {}
         (true, true, false) if _pressed_z => {}
-        // (false, true, false) if mouse_wheel_up => {}
-        // (false, true, false) if mouse_wheel_down => {}
+        (false, false, false) if mouse_wheel_up => action_event.send(Action::RotateAt {
+            pos: cursor.position,
+            dir: 1.0,
+        }),
+        (false, false, false) if mouse_wheel_down => action_event.send(Action::RotateAt {
+            pos: cursor.position,
+            dir: -1.0,
+        }),
         (true, false, false) if _pressed_t => {}
 
         (false, false, false) if pressed_delete || pressed_escape => {
