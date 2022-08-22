@@ -252,12 +252,14 @@ pub fn delete_making_polygon(
     mut action_event_reader: EventReader<Action>,
     polygon_query: Query<(Entity, &MakingPolygon)>,
 ) {
-    if let Some(Action::Delete) = action_event_reader.iter().next() {
+    if let Some(Action::DeleteMakingPoly) = action_event_reader.iter().next() {
         for (entity, _) in polygon_query.iter() {
             commands.entity(entity).despawn_recursive();
         }
     }
 }
+
+use lyon::algorithms::area::*;
 
 // upon pressing Enter, end making the polygon
 pub fn end_polygon(
@@ -267,6 +269,7 @@ pub fn end_polygon(
     mut action_event_reader: EventReader<Action>,
     mut polygon_query: Query<(Entity, &mut MakingPolygon)>,
     globals: Res<Globals>,
+    mut poly_order: ResMut<PolyOrder>,
 ) {
     //
     //
@@ -283,6 +286,14 @@ pub fn end_polygon(
             poly.path.close();
 
             let path = poly.path.clone().build();
+            let area = approximate_signed_area(0.1, &path);
+
+            info!("area : {}", area);
+            if area.abs() < 200.0 {
+                info!("area too small: {}", area);
+                commands.entity(entity).despawn_recursive();
+                return;
+            }
 
             // the path is shifted to the origin and the mesh transform is moved instead
             let (mesh, center_of_mass) = make_polygon_mesh(&path, &globals.polygon_color);
@@ -291,6 +302,7 @@ pub fn end_polygon(
             let mat_handle = fill_materials.add(FillMesh2dMaterial {
                 color: globals.polygon_color.into(),
                 show_com: 0.0, // show center of mass
+                selected: 0.0,
             });
 
             let translation = lyon::geom::Translation::new(-center_of_mass.x, -center_of_mass.y);
@@ -302,7 +314,7 @@ pub fn end_polygon(
             let fill_transform =
                 Transform::from_translation(center_of_mass.extend(rng.gen::<f32>()));
 
-            commands
+            let new_poly_entity = commands
                 .spawn_bundle(MaterialMesh2dBundle {
                     mesh: Mesh2dHandle(meshes.add(mesh)),
                     material: mat_handle,
@@ -320,7 +332,10 @@ pub fn end_polygon(
                         .iter()
                         .map(|x| *x - center_of_mass)
                         .collect(),
-                });
+                })
+                .id();
+
+            poly_order.add(new_poly_entity, fill_transform.translation.z);
 
             // despawn the MakingPolygon invisible entity and the child segments
             commands.entity(entity).despawn_recursive();

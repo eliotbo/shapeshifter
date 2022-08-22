@@ -12,6 +12,8 @@ pub struct FillMesh2dMaterial {
     pub color: Vec4,
     #[uniform(0)]
     pub show_com: f32,
+    #[uniform(0)]
+    pub selected: f32,
 }
 
 pub struct FillMesh2dPlugin;

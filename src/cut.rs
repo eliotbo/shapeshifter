@@ -9,6 +9,7 @@ use bevy::{
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
 };
 
+use lyon::algorithms::area::*;
 use lyon::algorithms::raycast::*;
 use lyon::tessellation::math::{point, Point};
 use lyon::tessellation::path::Path;
@@ -175,8 +176,11 @@ pub fn perform_cut(
         (Entity, &Handle<FillMesh2dMaterial>, &Transform, &MeshMeta),
         With<Polygon>,
     >,
+    mut poly_order: ResMut<PolyOrder>,
 ) {
     for (cut_entity, cut) in cut_query.iter() {
+        println!("cutting with segment: {:?}", cut.segment);
+        let mut do_remove_cut_entity = true;
         for (poly_entity, _material_handle, transform, mesh_meta) in polygon_query.iter_mut() {
             //
             commands.entity(cut_entity).remove::<JustMadeCut>();
@@ -195,6 +199,8 @@ pub fn perform_cut(
             // only compute the cut if the ray from the cut hits the polygon
             if let None = maybe_hit {
                 continue;
+            } else {
+                info!("ray hit");
             }
             let mut points: Vec<PolyPoint> = Vec::new();
 
@@ -216,9 +222,9 @@ pub fn perform_cut(
                 if let Some(intersection) = intersection {
                     points.push(PolyPoint::Intersect(intersection));
                 }
-
-                // info!("intersection: {:?}", intersection);
             }
+
+            info!("points: {:?}", points);
 
             let mut only_intersects: Vec<(usize, &Point)> = points
                 .iter()
@@ -240,13 +246,18 @@ pub fn perform_cut(
             // the polygon cannot be separated properly
             let num_intersects = only_intersects.len();
             if num_intersects % 2 == 1 || num_intersects < 2 {
-                println!("nope");
+                println!("nope, number of intersects: {}", num_intersects);
                 // remove the cut entity
-                commands.entity(cut_entity).despawn();
-                return;
-            } else {
-                // remove the polygon that was cut
-                commands.entity(poly_entity).despawn();
+
+                // visual check for whether the intersects are positioned and sorted correctly
+                show_intersects(
+                    &mut commands,
+                    &mut meshes,
+                    &only_intersects,
+                    &mut fill_materials,
+                );
+
+                continue;
             }
 
             // detect along which axis the intersections vary most from each other,
@@ -261,37 +272,6 @@ pub fn perform_cut(
                     a.y.partial_cmp(&b.y).unwrap()
                 }
             });
-
-            //
-            //
-            //
-            //
-            // // visual check for whether the intersects are positioned and sorted correctly
-            // let mut rng = thread_rng();
-            // let mut r = rng.gen::<f32>();
-            // let mut b = rng.gen::<f32>();
-            // let mut g = rng.gen::<f32>();
-            // for (k, inter) in only_intersects.iter().enumerate() {
-            //     let pos = Vec2::new(inter.1.x, inter.1.y);
-
-            //     if k % 2 == 0 {
-            //         // println!("odd");
-            //         r = rng.gen::<f32>();
-            //         b = rng.gen::<f32>();
-            //         g = rng.gen::<f32>();
-            //     }
-
-            //     let ends_mesh_handle = bevy::sprite::Mesh2dHandle(
-            //         meshes.add(Mesh::from(shape::Quad::new(Vec2::new(10., 10.)))),
-            //     );
-
-            //     commands.spawn_bundle(MaterialMesh2dBundle {
-            //         mesh: ends_mesh_handle.clone(),
-            //         material: materials.add(ColorMaterial::from(Color::rgb(r, b, g))),
-            //         transform: Transform::from_translation(pos.extend(200.0)),
-            //         ..Default::default()
-            //     });
-            // }
 
             // make pairs of intersects
             let mut pairs: Vec<(usize, usize)> = Vec::new();
@@ -356,6 +336,9 @@ pub fn perform_cut(
                 polys = new_polys_to_explore;
             }
 
+            let mut area_test_passed = true;
+            let mut new_entities = Vec::new();
+
             //
             //
             // crate one path for every closed polygon
@@ -390,12 +373,20 @@ pub fn perform_cut(
                 path.close();
                 let built_path = path.build();
 
+                let area = approximate_signed_area(0.1, &built_path);
+                if area.abs() < 200.0 {
+                    area_test_passed = false;
+                    info!("area too small: {:?}", area);
+                    break;
+                }
+
                 let (mesh, center_of_mass) = make_polygon_mesh(&built_path, &Color::TEAL);
 
                 // Useless at the moment, but here for future use
                 let mat_handle = fill_materials.add(FillMesh2dMaterial {
                     color: Color::TEAL.into(),
                     show_com: 0.0, // show center of mass
+                    selected: 1.0,
                 });
 
                 let translation =
@@ -408,7 +399,7 @@ pub fn perform_cut(
                 let fill_transform =
                     Transform::from_translation(center_of_mass.extend(rng.gen::<f32>() + 1.0));
 
-                commands
+                let new_entity = commands
                     .spawn_bundle(MaterialMesh2dBundle {
                         mesh: Mesh2dHandle(meshes.add(mesh)),
                         material: mat_handle,
@@ -425,7 +416,11 @@ pub fn perform_cut(
                             .iter()
                             .map(|x| *x - center_of_mass)
                             .collect(),
-                    });
+                    })
+                    .id();
+
+                poly_order.add(new_entity, fill_transform.translation.z);
+                new_entities.push(new_entity);
 
                 //
                 //
@@ -442,6 +437,26 @@ pub fn perform_cut(
                 //     ..Default::default()
                 // });
             }
+
+            // remove the polygon that was cut
+            if area_test_passed {
+                commands.entity(poly_entity).despawn();
+                do_remove_cut_entity = false;
+                // return;
+            } else {
+                // remove all newly created polygons
+                for entity in new_entities.iter() {
+                    commands.entity(*entity).despawn();
+                }
+
+                // remove all new entities in poly_order
+                for entity in new_entities.iter() {
+                    poly_order.remove(*entity);
+                }
+            }
+        }
+        if do_remove_cut_entity {
+            commands.entity(cut_entity).despawn();
         }
     }
 }
@@ -548,4 +563,42 @@ pub fn get_poly_points(poly: &Vec<usize>, points: &Vec<PolyPoint>) -> Vec<PolyPo
     }
 
     poly_points
+}
+
+pub fn show_intersects(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    only_intersects: &Vec<(usize, &Point)>,
+    fill_materials: &mut ResMut<Assets<FillMesh2dMaterial>>,
+) {
+    // visual check for whether the intersects are positioned and sorted correctly
+    let mut rng = thread_rng();
+    let mut r = rng.gen::<f32>();
+    let mut b = rng.gen::<f32>();
+    let mut g = rng.gen::<f32>();
+    for (k, inter) in only_intersects.iter().enumerate() {
+        let pos = Vec2::new(inter.1.x, inter.1.y);
+
+        if k % 2 == 0 {
+            // println!("odd");
+            r = rng.gen::<f32>();
+            b = rng.gen::<f32>();
+            g = rng.gen::<f32>();
+        }
+
+        let ends_mesh_handle =
+            bevy::sprite::Mesh2dHandle(meshes.add(Mesh::from(shape::Quad::new(Vec2::new(5., 5.)))));
+
+        let mat_handle = fill_materials.add(FillMesh2dMaterial {
+            color: Vec4::new(r, b, g, 1.),
+            show_com: 0.0, // show center of mass
+            selected: 0.0,
+        });
+        commands.spawn_bundle(MaterialMesh2dBundle {
+            mesh: ends_mesh_handle.clone(),
+            material: mat_handle,
+            transform: Transform::from_translation(pos.extend(200.0)),
+            ..Default::default()
+        });
+    }
 }

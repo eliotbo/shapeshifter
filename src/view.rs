@@ -23,6 +23,7 @@ pub fn glow_poly(
     mut commands: Commands,
     mouse_button_input: Res<Input<MouseButton>>,
     cursor: Res<Cursor>,
+    keyboard_input: Res<Input<KeyCode>>,
     query: Query<
         (
             Entity,
@@ -35,6 +36,7 @@ pub fn glow_poly(
     >,
     mut materials: ResMut<Assets<FillMesh2dMaterial>>,
 ) {
+    // TODO: move these to inputs
     let left_mouse_click = mouse_button_input.just_pressed(MouseButton::Left);
     let right_mouse_click = mouse_button_input.just_pressed(MouseButton::Right);
     // let mut moving_entity = None;
@@ -42,37 +44,41 @@ pub fn glow_poly(
 
     let mut maybe_move_entity: Option<(Entity, PossibleMoves)> = None;
 
+    let ctrl = keyboard_input.pressed(KeyCode::LControl);
+    let shift = keyboard_input.pressed(KeyCode::LShift);
+
     for (entity, material_handle, transform, mesh_meta, maybe_moving) in query.iter() {
         //
         //
         //
-        // the points are at the origin, so we need to take the translation + rotation into account
-        // let transformed_path = path.transformed(&rot).transformed(&translation);
+
         //
-        let (transformed_path, angle) = transform_path(&mesh_meta.path, transform);
-        //
+        // let (transformed_path, angle) = transform_path(&mesh_meta.path, transform);
         //
         //
-        // The path is now translated and rotated. We can now check whether the mouse in inside the path
         //
-        let is_inside_poly = hit_test_path(
-            &cursor.clone().into(),
-            transformed_path.iter(),
-            FillRule::EvenOdd,
-            0.1,
-        );
+
+        //
+        // let is_inside_poly = hit_test_path(
+        //     &cursor.clone().into(),
+        //     transformed_path.iter(),
+        //     FillRule::EvenOdd,
+        //     0.1,
+        // );
+
+        let (is_inside_poly, angle) = mesh_meta.hit_test(&cursor.clone().into(), &transform);
 
         let mut material = materials.get_mut(&material_handle).unwrap();
         material.show_com = 0.0;
 
-        if is_inside_poly && left_mouse_click {
+        if is_inside_poly && left_mouse_click && !ctrl && !shift {
             maybe_move_entity = Some((
                 entity,
                 PossibleMoves::Translation(transform.translation.truncate()),
             ));
         }
 
-        if is_inside_poly && right_mouse_click {
+        if is_inside_poly && right_mouse_click && !ctrl && !shift {
             maybe_move_entity = Some((entity, PossibleMoves::Rotation(angle)));
         }
 
@@ -84,6 +90,9 @@ pub fn glow_poly(
     }
 
     // add Rotating or Translating component to clicked entity
+    //
+
+    // TODO: prioritize higher z pos
     if let Some((entity, moves)) = maybe_move_entity {
         let (_, material_handle, _, _, _) = query.get(entity).unwrap();
         let mut material = materials.get_mut(&material_handle).unwrap();

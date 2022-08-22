@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use lyon::algorithms::hit_test::*;
+use lyon::path::FillRule;
 use lyon::tessellation::math::{point, Point};
 use lyon::tessellation::path::Path;
 
@@ -25,6 +27,41 @@ impl Default for Globals {
     }
 }
 
+pub struct EntityZ {
+    pub entity: Entity,
+    pub z: f32,
+}
+
+// keeps track of the z position of the polygons
+pub struct PolyOrder {
+    pub entities: Vec<EntityZ>,
+}
+
+impl Default for PolyOrder {
+    fn default() -> Self {
+        PolyOrder { entities: vec![] }
+    }
+}
+
+impl PolyOrder {
+    pub fn add(&mut self, entity: Entity, z: f32) {
+        self.entities.push(EntityZ { entity, z });
+        self.sort();
+    }
+
+    pub fn remove(&mut self, entity: Entity) {
+        self.entities.retain(|e| e.entity != entity);
+    }
+
+    pub fn sort(&mut self) {
+        // sort by z
+        self.entities.sort_by(|a, b| a.z.partial_cmp(&b.z).unwrap());
+    }
+}
+
+#[derive(Component)]
+pub struct Selected;
+
 #[derive(Component)]
 pub struct Rotating {
     pub starting_angle: f32,
@@ -44,6 +81,26 @@ pub struct MeshMeta {
     pub id: MeshId,
     pub path: Path,
     pub points: Vec<Vec2>,
+}
+
+impl MeshMeta {
+    // Test whether the mouse is inside the polygon
+    pub fn hit_test(&self, pos: &Point, transform: &Transform) -> (bool, f32) {
+        //
+        //
+        //
+        // the points are at the origin, so we need to take the translation + rotation into account
+        // let transformed_path = path.transformed(&rot).transformed(&translation);
+        let (transformed_path, angle) = transform_path(&self.path, transform);
+
+        (
+            //
+            //
+            //  The path is now translated and rotated. We can now check whether the mouse in inside the path
+            hit_test_path(pos, transformed_path.iter(), FillRule::EvenOdd, 0.1),
+            angle,
+        )
+    }
 }
 
 #[derive(Serialize, Deserialize)]

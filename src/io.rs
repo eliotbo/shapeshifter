@@ -29,6 +29,7 @@ pub fn quick_load_mesh(
     mut quickload_event_reader: EventReader<QuickLoad>,
     mut load_event_reader: EventReader<Load>,
     globals: Res<Globals>,
+    mut poly_order: ResMut<PolyOrder>,
 ) {
     let mut load_names = Vec::new();
 
@@ -60,6 +61,7 @@ pub fn quick_load_mesh(
         let mat_handle = fill_materials.add(FillMesh2dMaterial {
             color: globals.polygon_color.into(),
             show_com: 0.0,
+            selected: 0.0,
         });
 
         let mut path: NoAttributes<BuilderImpl> = Path::builder();
@@ -79,10 +81,11 @@ pub fn quick_load_mesh(
 
         let mut rng = thread_rng();
         let id = rng.gen::<u64>();
+        let z = rng.gen::<f32>();
 
-        let transform = Transform::from_translation(Vec3::new(0.0, 0.0, rng.gen::<f32>()));
+        let transform = Transform::from_translation(Vec3::new(0.0, 0.0, z));
 
-        commands
+        let entity = commands
             .spawn_bundle(MaterialMesh2dBundle {
                 mesh: Mesh2dHandle(mesh_handle),
                 material: mat_handle,
@@ -94,7 +97,10 @@ pub fn quick_load_mesh(
                 id,
                 path: built_path.clone(),
                 points: loaded_mesh_params.points, //TODO
-            });
+            })
+            .id();
+
+        poly_order.add(entity, z);
     }
 }
 

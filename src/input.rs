@@ -17,7 +17,10 @@ pub enum Action {
     StartMakingCutSegment { start: Vec2 },
     EndCutSegment { end: Vec2 },
     RotateAt { pos: Vec2, dir: f32 },
-    Delete,
+    DeleteMakingPoly,
+    DeleteSelected,
+    SelectPoly { pos: Vec2, keep_selected: bool },
+    DeleteAll,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -128,18 +131,21 @@ pub fn direct_make_polygon_action(
 
     let mouse_just_pressed = mouse_button_input.just_pressed(MouseButton::Left);
     let mouse_right_just_pressed = mouse_button_input.just_pressed(MouseButton::Right);
+    let mouse_just_released = mouse_button_input.just_released(MouseButton::Left);
 
     let mut mouse_wheel_up = false;
     let mut mouse_wheel_down = false;
     if let Some(mouse_wheel) = mouse_wheel_events.iter().next() {
         if mouse_wheel.y > 0.5 {
-            info!("mouse wheel up");
             mouse_wheel_up = true;
         }
         if mouse_wheel.y < -0.5 {
             mouse_wheel_down = true;
         }
     }
+
+    let making_cut = making_cut_query.iter().next().is_some();
+    let making_poly = making_poly_query.iter().next().is_some();
 
     // only used for pattern matching
     let _pressed_g = keyboard_input.just_pressed(KeyCode::G);
@@ -167,20 +173,20 @@ pub fn direct_make_polygon_action(
         //
         //
         (false, false, _)
-            if ((pressed_enter || mouse_right_just_pressed || pressed_space)
-                && making_poly_query.iter().count() == 1) =>
+            if (pressed_enter || mouse_right_just_pressed || pressed_space) && making_poly =>
         {
             action_event.send(Action::EndMakingPolygon);
         }
 
         // a click ends the current segment
-        (false, false, false) if (mouse_just_pressed && making_poly_query.iter().count() == 1) => {
+        (false, false, false) if mouse_just_pressed && making_poly => {
             action_event.send(Action::EndSegment {
                 pos: cursor.clone().into(),
             });
         }
 
-        (false, false, false) if mouse_just_pressed && making_cut_query.iter().count() == 1 => {
+        // cut on mouse release
+        (_, _, _) if mouse_just_released && making_cut => {
             action_event.send(Action::EndCutSegment {
                 end: cursor.position,
             });
@@ -200,7 +206,7 @@ pub fn direct_make_polygon_action(
         (false, true, false) if pressed_l => quickload_event_writer.send(QuickLoad),
         (false, false, false) if _pressed_g => {}
 
-        (false, false, false) if pressed_escape && making_cut_query.iter().count() == 1 => {
+        (false, false, false) if pressed_escape && making_cut => {
             // delete cut segment
             let (entity, _) = making_cut_query.single();
             commands.entity(entity).despawn();
@@ -220,8 +226,8 @@ pub fn direct_make_polygon_action(
         }),
         (true, false, false) if _pressed_t => {}
 
-        (false, false, false) if pressed_delete || pressed_escape => {
-            action_event.send(Action::Delete);
+        (false, false, false) if making_poly && (pressed_delete || pressed_escape) => {
+            action_event.send(Action::DeleteMakingPoly);
         }
 
         // cannot start a polygon if one is already being made
@@ -237,6 +243,17 @@ pub fn direct_make_polygon_action(
                 start: cursor.position,
             });
         }
+
+        (ctrl, shift, false) if mouse_just_pressed && !making_poly && !making_cut => {
+            action_event.send(Action::SelectPoly {
+                pos: cursor.position,
+                keep_selected: (ctrl && shift),
+            });
+        }
+
+        (true, true, _) if pressed_delete => action_event.send(Action::DeleteAll),
+
+        (_, _, _) if pressed_delete => action_event.send(Action::DeleteSelected),
 
         _ => {}
     }
