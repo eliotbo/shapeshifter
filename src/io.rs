@@ -145,9 +145,43 @@ pub fn quick_load_mesh(
             let id = rng.gen::<u64>();
             let z = rng.gen::<f32>();
 
+            use bevy_easings::*;
             let mut transform =
                 Transform::from_translation(loaded_mesh_params.translation.extend(z));
             transform.rotate_axis(Vec3::Z, loaded_mesh_params.rotation);
+
+            // let t2 = transform.clone();
+            // t2.ease_to(
+            //     Transform::from_translation(Vec3::new(100., 400., z)),
+            //     bevy_easings::EaseFunction::QuadraticInOut,
+            //     bevy_easings::EasingType::Once {
+            //         duration: std::time::Duration::from_secs_f32(2.0),
+            //         // pause: None,
+            //     },
+            // )
+            // .ease_to(
+            //     Transform::from_scale(Vec3::new(0.5, 0.5, 1.0)),
+            //     bevy_easings::EaseFunction::QuadraticInOut,
+            //     bevy_easings::EasingType::Once {
+            //         duration: std::time::Duration::from_millis(500),
+            //     },
+            // );
+
+            // let t2 = Transform::from_translation(Vec3::new(100., 400., z))
+            //     .ease_to(
+            //         Transform::from_scale(Vec3::splat(2.0)),
+            //         bevy_easings::EaseFunction::QuadraticInOut,
+            //         bevy_easings::EasingType::Once {
+            //             duration: std::time::Duration::from_millis(500),
+            //         },
+            //     )
+            //     .ease_to(
+            //         Transform::from_scale(Vec3::ONE),
+            //         bevy_easings::EaseFunction::QuadraticInOut,
+            //         bevy_easings::EasingType::Once {
+            //             duration: std::time::Duration::from_millis(500),
+            //         },
+            //     );
 
             //
             //
@@ -165,7 +199,26 @@ pub fn quick_load_mesh(
                     id,
                     path: built_path.clone(),
                     points: loaded_mesh_params.points, //TODO
+                    previous_transform: transform,
                 })
+                // .insert(t2)
+                // .insert(
+                // Transform::from_scale(Vec3::ZERO)
+                //     .ease_to(
+                //         Transform::from_scale(Vec3::splat(2.0)),
+                //         bevy_easings::EaseFunction::QuadraticInOut,
+                //         bevy_easings::EasingType::Once {
+                //             duration: std::time::Duration::from_millis(500),
+                //         },
+                //     )
+                //     .ease_to(
+                //         Transform::from_scale(Vec3::ONE),
+                //         bevy_easings::EaseFunction::QuadraticInOut,
+                //         bevy_easings::EasingType::Once {
+                //             duration: std::time::Duration::from_millis(500),
+                //         },
+                //     ),
+                // )
                 .id();
 
             poly_order.add(entity, z);

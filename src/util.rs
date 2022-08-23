@@ -31,14 +31,14 @@ impl Default for Globals {
             cut_polygon: Color::TEAL,
             min_velocity: 0.5,
             friction: 50.0,
-            snap_to_grid: true,
+            snap_to_grid: false,
             grid_size: 20.0,
         }
     }
 }
 
 #[derive(Component)]
-pub struct Animation {
+pub struct ForceMotion {
     pub force: Vec2,
     pub area: f32,
     pub velocity: Vec2,
@@ -95,6 +95,8 @@ pub struct Translating {
 
 pub struct DeleteEvent;
 
+pub struct TestCollisionEvent(pub Entity);
+
 pub type MeshId = u64;
 
 #[derive(Component)]
@@ -102,6 +104,7 @@ pub struct MeshMeta {
     pub id: MeshId,
     pub path: Path,
     pub points: Vec<Vec2>,
+    pub previous_transform: Transform,
 }
 
 impl MeshMeta {
@@ -123,8 +126,36 @@ impl MeshMeta {
         )
     }
 
-    // Test whether the path is intersecting with another path
-    pub fn intersect_test(
+    //
+    //
+    //
+    // Fast test of overlapping bounding boxes
+    pub fn bounding_box_collide(
+        &self,
+        other: &Path,
+        transform: &Transform,
+        other_transform: &Transform,
+    ) -> bool {
+        //
+        //
+        //
+        let (transformed_path, _) = transform_path(&self.path, transform);
+        let (transformed_other, _) = transform_path(other, other_transform);
+
+        let bb1 = lyon::algorithms::aabb::fast_bounding_box(&transformed_path);
+        let bb2 = lyon::algorithms::aabb::fast_bounding_box(&transformed_other);
+
+        bb1.min.x <= bb2.max.x
+            && bb1.max.x >= bb2.min.x
+            && bb1.min.y <= bb2.max.y
+            && bb1.max.y >= bb2.min.y
+    }
+
+    //
+    //
+    //
+    // Test whether the path is intersecting with another path by checking all intersecting segments
+    pub fn precise_intersect_test(
         &self,
         other: &Path,
         transform: &Transform,

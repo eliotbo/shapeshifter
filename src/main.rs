@@ -42,9 +42,11 @@ fn main() {
         .add_event::<QuickLoad>()
         .add_event::<Load>()
         .add_event::<SaveMeshEvent>()
+        .add_event::<TestCollisionEvent>()
         .insert_resource(Globals::default())
         .insert_resource(Cursor::default())
         .insert_resource(PolyOrder::default())
+        .add_plugin(bevy_easings::EasingsPlugin)
         .add_plugins(DefaultPlugins)
         .add_plugin(CamPlugin)
         .add_plugin(FillMesh2dPlugin)
@@ -65,14 +67,67 @@ fn main() {
         .add_system(delete_poly)
         .add_system(delete_all)
         .add_system(toggle_grid)
+        .add_system(test_collisions)
         .add_system(transform_poly.exclusive_system().at_end())
         .run();
 }
 
-pub fn setup_mesh(mut load_event_writer: EventWriter<Load>) {
+pub fn setup_mesh(mut commands: Commands, mut load_event_writer: EventWriter<Load>) {
     load_event_writer.send(Load("my_mesh0".to_string()));
     // load_event_writer.send(Load("my_mesh6".to_string()));
     // load_event_writer.send(Load("my_mesh8".to_string()));
+}
+
+use bevy_easings::*;
+
+pub fn test_collisions(
+    mut commands: Commands,
+    mut query: Query<(&Transform, &mut MeshMeta), With<Polygon>>,
+    mut collision_test_event: EventReader<TestCollisionEvent>,
+) {
+    for TestCollisionEvent(entity) in collision_test_event.iter() {
+        let mut do_go_back_to_previous_pos = false;
+        let (transform1, meta1) = query.get(*entity).unwrap();
+        for (transform2, meta2) in query.iter() {
+            //
+            // do not test collision with self
+            if meta1.id == meta2.id {
+                continue;
+            }
+
+            //
+            //
+            if meta1.bounding_box_collide(&meta2.path, &transform1, &transform2) {
+                if meta1.precise_intersect_test(&meta2.path, &transform1, &transform2) {
+                    println!("collision");
+                    do_go_back_to_previous_pos = true;
+                }
+            }
+        }
+
+        let (mut transform1, mut meta1) = query.get_mut(*entity).unwrap();
+
+        if do_go_back_to_previous_pos {
+            // let pre = meta1.previous_transform;
+
+            // let mut new_transform =
+            //     Transform::from_translation(meta.translation.extend(z));
+            // new_transform.rotate_axis(Vec3::Z, loaded_mesh_params.rotation);
+            info!("collision EASING");
+
+            let what = transform1.ease_to(
+                meta1.previous_transform,
+                bevy_easings::EaseFunction::BounceOut,
+                bevy_easings::EasingType::Once {
+                    duration: std::time::Duration::from_secs_f32(0.3),
+                },
+            );
+            // commands.entity(*entity).remove::<Transform>();
+            commands.entity(*entity).insert(what);
+        } else {
+            meta1.previous_transform = transform1.clone();
+        }
+    }
 }
 
 use lyon::tessellation::math::Point;
@@ -142,6 +197,7 @@ pub fn toggle_grid(
         globals.snap_to_grid = !globals.snap_to_grid;
 
         let num_grid_pints = 25;
+        let num_grid_pints_x = 30;
 
         if globals.snap_to_grid {
             //
@@ -152,7 +208,7 @@ pub fn toggle_grid(
             //
             //
             //
-            for x in -num_grid_pints..num_grid_pints {
+            for x in -num_grid_pints_x..num_grid_pints_x {
                 for y in -num_grid_pints..num_grid_pints {
                     commands
                         .spawn_bundle(MaterialMesh2dBundle {
@@ -168,16 +224,6 @@ pub fn toggle_grid(
                         .insert(Grid);
                 }
             }
-
-            // let material = materials.add(globals.cutting_segment_color.into());
-            // commands
-            //     .spawn_bundle(MaterialMesh2dBundle {
-            //         mesh,
-            //         material,
-            //         transform,
-            //         ..Default::default()
-            //     })
-            //     .insert(Grid);
         } else {
             for entity in query.iter() {
                 commands.entity(entity).despawn_recursive();

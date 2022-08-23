@@ -349,6 +349,7 @@ pub fn end_polygon(
                         .iter()
                         .map(|x| *x - center_of_mass)
                         .collect(),
+                    previous_transform: fill_transform,
                 })
                 .id();
 

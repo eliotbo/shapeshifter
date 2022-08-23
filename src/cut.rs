@@ -168,7 +168,7 @@ pub fn end_cut_segment(
 
 pub fn move_after_cut(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut Transform, &mut Animation)>,
+    mut query: Query<(Entity, &mut Transform, &mut ForceMotion)>,
     globals: Res<Globals>,
     time: Res<Time>,
 ) {
@@ -187,7 +187,7 @@ pub fn move_after_cut(
         // *transform =
 
         if animation.velocity.length() < globals.min_velocity {
-            commands.entity(entity).remove::<Animation>();
+            commands.entity(entity).remove::<ForceMotion>();
         }
     }
 }
@@ -448,8 +448,9 @@ pub fn perform_cut(
                             .iter()
                             .map(|x| *x - center_of_mass)
                             .collect(),
+                        previous_transform: fill_transform,
                     })
-                    .insert(Animation {
+                    .insert(ForceMotion {
                         force: Vec2::new(0.0, 0.0),
                         area,
                         velocity: cut_normal * 0.05,

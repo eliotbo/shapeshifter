@@ -131,6 +131,7 @@ pub fn transform_poly(
         Query<(Entity, &mut Transform, &Translating), With<Polygon>>,
     )>,
     globals: Res<Globals>,
+    mut collision_test_writer: EventWriter<TestCollisionEvent>,
 ) {
     for (_, mut transform, rotating, _) in queries.p0().iter_mut() {
         // println!("rotating");
@@ -150,10 +151,13 @@ pub fn transform_poly(
             (translating.starting_pos + mouse_delta).extend(transform.translation.z);
     }
 
+    // upon release the mouse button, remove the Translating or Rotating component
+    // and check for collisions
     if mouse_button_input.just_released(MouseButton::Left) {
         // remove Translating
         for (entity, _, _) in queries.p1().iter_mut() {
             commands.entity(entity).remove::<Translating>();
+            collision_test_writer.send(TestCollisionEvent(entity));
         }
     }
 
@@ -161,19 +165,21 @@ pub fn transform_poly(
         // remove Rotating
         for (entity, _, _, _) in queries.p0().iter_mut() {
             commands.entity(entity).remove::<Rotating>();
+            collision_test_writer.send(TestCollisionEvent(entity));
         }
     }
 }
 
 // Rotates polygon upon mousewheel event
 pub fn rotate_once(
-    mut query: Query<(&mut Transform, &MeshMeta), With<Polygon>>,
+    mut query: Query<(Entity, &mut Transform, &MeshMeta), With<Polygon>>,
     mut action_event_reader: EventReader<Action>,
     globals: Res<Globals>,
+    mut collision_test_writer: EventWriter<TestCollisionEvent>,
 ) {
     // triggered by mousewheel
     if let Some(Action::RotateAt { pos, dir }) = action_event_reader.iter().next() {
-        for (mut transform, mesh_meta) in query.iter_mut() {
+        for (entity, mut transform, mesh_meta) in query.iter_mut() {
             //
             //
             let (transformed_path, angle) = transform_path(&mesh_meta.path, transform.as_ref());
@@ -188,6 +194,7 @@ pub fn rotate_once(
                 0.1,
             ) {
                 transform.rotation = Quat::from_rotation_z(angle + dir * globals.min_turn_angle);
+                collision_test_writer.send(TestCollisionEvent(entity));
 
                 return;
             }

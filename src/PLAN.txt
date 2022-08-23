@@ -1,14 +1,21 @@
 PLAN
 
 TODO:
-3) grid + snap to grid
+1) make the shapeshifted area 
+2) make the take back animation when two shapes are overlapping
+    need previous transform in meta information
 
 
-git commands
+
+GIT commands
 
 create new repo online from local repo
     gh repo create
     git push --set-upstream origin main
+
+
+IDEA
+
 
 
 
@@ -28,9 +35,22 @@ Each section has its own theme
 2) Stone 
 3) Glass
 
+Level:
+look at origami
+chocolate bar
 
 
+POLISHING
 
 Make a better rounded look: at every point, but a bezier curve to round off the edges
 ----limit the area of a new polygon after a cut (cannot make a new polygon that is
     too small)
+
+add shadows to the edges of the polygons
+
+make neuromorphic design for shapeshifted area. Send position of polygon points to gpu,
+and use a polygon SDF. Make Corners rounded.
+        Make shaders for each theme
+
+
+
