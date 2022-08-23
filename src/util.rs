@@ -78,6 +78,9 @@ impl PolyOrder {
 }
 
 #[derive(Component)]
+pub struct Grid;
+
+#[derive(Component)]
 pub struct Selected;
 
 #[derive(Component)]

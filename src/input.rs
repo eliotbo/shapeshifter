@@ -22,6 +22,7 @@ pub enum Action {
     DeleteSelected,
     SelectPoly { pos: Vec2, keep_selected: bool },
     DeleteAll,
+    ToggleGrid,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -252,7 +253,7 @@ pub fn direct_make_polygon_action(
 
         (_, _, _) if pressed_delete => action_event.send(Action::DeleteSelected),
 
-        (_, _, _) if pressed_g => globals.snap_to_grid = !globals.snap_to_grid,
+        (_, _, _) if pressed_g => action_event.send(Action::ToggleGrid),
 
         _ => {}
     }
