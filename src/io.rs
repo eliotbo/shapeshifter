@@ -7,6 +7,7 @@ use crate::material::FillMesh2dMaterial;
 use crate::poly::Polygon;
 use crate::util::*;
 
+use std::fs::create_dir;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
@@ -21,7 +22,12 @@ use lyon::tessellation::path::{builder::NoAttributes, path::BuilderImpl, Path};
 pub struct QuickLoad;
 pub struct Load(pub String);
 
-// only loads groups
+// either loads the "assets/meshes/my_mesh0" folder with the QuickLoad event
+// or loads the "assets/meshes/<name>" folder with the Load event.
+//
+// Groups of polygons are not tagged as a group.
+//
+//
 pub fn quick_load_mesh(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -32,77 +38,226 @@ pub fn quick_load_mesh(
     mut poly_order: ResMut<PolyOrder>,
 ) {
     let mut load_names = Vec::new();
+    let mut save_prepath = std::env::current_dir().unwrap();
+    save_prepath.push("assets/meshes/".to_owned());
+
+    let prefix = "my_mesh".to_string();
+    let extension = "obj".to_string();
 
     for _ in quickload_event_reader.iter() {
-        load_names.push("my_mesh7".to_string());
+        //
+        //
+        // to change the folder that QuickLoad will load, change the string here
+        load_names.push("my_mesh0".to_string());
     }
 
     for load in load_event_reader.iter() {
         load_names.push(load.0.clone());
     }
 
-    for name in load_names {
-        info!("quick loading mesh");
+    for load_name in load_names.iter() {
+        //
+        //
+        // initialize path
+        let mut save_path = save_prepath.clone();
+        save_path.push(load_name);
 
-        let filename = "assets/meshes/".to_owned() + &name + ".obj";
+        //
+        //
+        // insert the first name
+        save_path.push(prefix.clone() + "0" + "." + &extension);
 
-        let mut save_path = std::env::current_dir().unwrap();
-        save_path.push(filename);
+        //
+        //
+        let all_files = std::fs::read_dir(save_prepath).unwrap();
+        let single_mesh = all_files.count() == 2; // obj and point
 
-        let mesh_handle: Handle<Mesh> = asset_server.load(save_path.to_str().unwrap());
-
-        // get mesh info using the .points extension
-        let saved_mesh_data = save_path.with_extension("points");
-        let mut file = std::fs::File::open(saved_mesh_data).unwrap();
-        let mut contents = String::new();
-        file.read_to_string(&mut contents).unwrap();
-        let loaded_mesh_params: SaveMeshMeta = serde_json::from_str(&contents).unwrap();
-
-        let mat_handle = fill_materials.add(FillMesh2dMaterial {
-            color: globals.polygon_color.into(),
-            show_com: 0.0,
-            selected: 0.0,
-        });
-
-        let mut path: NoAttributes<BuilderImpl> = Path::builder();
-
-        for (idx, pos) in loaded_mesh_params.points.iter().enumerate() {
+        //
+        //
+        //
+        // load every my_mesh*.obj file and my_mesh*.point file
+        let mut k = 0;
+        loop {
             //
-            if idx == 0 {
-                path.begin(Point::new(pos.x, pos.y));
+            //
+            // name of file with incrementing k
+            let mut name = prefix.to_string();
+            name.push_str(&(k.to_string()));
+            k = k + 1;
+
+            save_path = save_path.with_file_name(&name);
+            save_path = save_path.with_extension(&extension);
+
+            info!("quick loading mesh: {:?}", save_path);
+            info!("Is file?: {:?}", save_path.exists());
+
+            // Only condition is that the file exists. If not, loading is terminated
+            if !save_path.is_file() {
+                return;
+            }
+
+            //
+            //
+            //
+            // load the mesh with an .obj loader (the bevy_obj crate)
+            let mesh_handle: Handle<Mesh> = asset_server.load(save_path.to_str().unwrap());
+
+            //
+            //
+            //
+            // get mesh meta info using the .points extension
+            let saved_mesh_data = save_path.with_extension("points");
+            let mut file = std::fs::File::open(saved_mesh_data).unwrap();
+            let mut contents = String::new();
+            file.read_to_string(&mut contents).unwrap();
+            let loaded_mesh_params: SaveMeshMeta = serde_json::from_str(&contents).unwrap();
+
+            let poly_color = if single_mesh {
+                globals.polygon_color
             } else {
-                path.line_to(Point::new(pos.x, pos.y));
+                globals.cut_polygon
             };
+
+            let mat_handle = fill_materials.add(FillMesh2dMaterial {
+                color: poly_color.into(),
+                show_com: 0.0,
+                selected: 0.0,
+            });
+
+            //
+            //
+            //
+            // build the polygon
+            let mut path: NoAttributes<BuilderImpl> = Path::builder();
+
+            for (idx, pos) in loaded_mesh_params.points.iter().enumerate() {
+                //
+                if idx == 0 {
+                    path.begin(Point::new(pos.x, pos.y));
+                } else {
+                    path.line_to(Point::new(pos.x, pos.y));
+                };
+            }
+
+            path.close();
+
+            let built_path: Path = path.clone().build();
+
+            let mut rng = thread_rng();
+            let id = rng.gen::<u64>();
+            let z = rng.gen::<f32>();
+
+            let mut transform =
+                Transform::from_translation(loaded_mesh_params.translation.extend(z));
+            transform.rotate_axis(Vec3::Z, loaded_mesh_params.rotation);
+
+            //
+            //
+            //
+            // spawn the polygon
+            let entity = commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: Mesh2dHandle(mesh_handle),
+                    material: mat_handle,
+                    transform,
+                    ..default()
+                })
+                .insert(Polygon)
+                .insert(MeshMeta {
+                    id,
+                    path: built_path.clone(),
+                    points: loaded_mesh_params.points, //TODO
+                })
+                .id();
+
+            poly_order.add(entity, z);
         }
-
-        path.close();
-
-        let built_path: Path = path.clone().build();
-
-        let mut rng = thread_rng();
-        let id = rng.gen::<u64>();
-        let z = rng.gen::<f32>();
-
-        let transform = Transform::from_translation(Vec3::new(0.0, 0.0, z));
-
-        let entity = commands
-            .spawn_bundle(MaterialMesh2dBundle {
-                mesh: Mesh2dHandle(mesh_handle),
-                material: mat_handle,
-                transform,
-                ..default()
-            })
-            .insert(Polygon)
-            .insert(MeshMeta {
-                id,
-                path: built_path.clone(),
-                points: loaded_mesh_params.points, //TODO
-            })
-            .id();
-
-        poly_order.add(entity, z);
     }
 }
+
+// pub fn quick_load_mesh(
+//     mut commands: Commands,
+//     asset_server: Res<AssetServer>,
+//     mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
+//     mut quickload_event_reader: EventReader<QuickLoad>,
+//     mut load_event_reader: EventReader<Load>,
+//     globals: Res<Globals>,
+//     mut poly_order: ResMut<PolyOrder>,
+// ) {
+//     let mut load_names = Vec::new();
+
+//     for _ in quickload_event_reader.iter() {
+//         load_names.push("my_mesh0".to_string());
+//     }
+
+//     for load in load_event_reader.iter() {
+//         load_names.push(load.0.clone());
+//     }
+
+//     for name in load_names {
+//         info!("quick loading mesh");
+
+//         let filename = "assets/meshes/".to_owned() + &name + ".obj";
+
+//         let mut save_path = std::env::current_dir().unwrap();
+//         save_path.push(filename);
+
+//         // load the mesh
+//         let mesh_handle: Handle<Mesh> = asset_server.load(save_path.to_str().unwrap());
+
+//         // get mesh info using the .points extension
+//         let saved_mesh_data = save_path.with_extension("points");
+//         let mut file = std::fs::File::open(saved_mesh_data).unwrap();
+//         let mut contents = String::new();
+//         file.read_to_string(&mut contents).unwrap();
+//         let loaded_mesh_params: SaveMeshMeta = serde_json::from_str(&contents).unwrap();
+
+//         let mat_handle = fill_materials.add(FillMesh2dMaterial {
+//             color: globals.polygon_color.into(),
+//             show_com: 0.0,
+//             selected: 0.0,
+//         });
+
+//         let mut path: NoAttributes<BuilderImpl> = Path::builder();
+
+//         for (idx, pos) in loaded_mesh_params.points.iter().enumerate() {
+//             //
+//             if idx == 0 {
+//                 path.begin(Point::new(pos.x, pos.y));
+//             } else {
+//                 path.line_to(Point::new(pos.x, pos.y));
+//             };
+//         }
+
+//         path.close();
+
+//         let built_path: Path = path.clone().build();
+
+//         let mut rng = thread_rng();
+//         let id = rng.gen::<u64>();
+//         let z = rng.gen::<f32>();
+
+//         let mut transform = Transform::from_translation(loaded_mesh_params.translation.extend(z));
+//         transform.rotate_axis(Vec3::Z, loaded_mesh_params.rotation);
+
+//         let entity = commands
+//             .spawn_bundle(MaterialMesh2dBundle {
+//                 mesh: Mesh2dHandle(mesh_handle),
+//                 material: mat_handle,
+//                 transform,
+//                 ..default()
+//             })
+//             .insert(Polygon)
+//             .insert(MeshMeta {
+//                 id,
+//                 path: built_path.clone(),
+//                 points: loaded_mesh_params.points, //TODO
+//             })
+//             .id();
+
+//         poly_order.add(entity, z);
+//     }
+// }
 
 // pub fn open_file_dialog(save_name: &str, folder: &str, extension: &str) -> Option<PathBuf> {
 //     let mut k = 0;
@@ -139,22 +294,45 @@ pub fn quick_load_mesh(
 pub struct SaveMeshEvent;
 
 pub fn quick_save(
-    mesh_query: Query<(&Mesh2dHandle, &MeshMeta), With<Polygon>>,
+    mesh_query: Query<(&Mesh2dHandle, &Transform, &MeshMeta), With<Polygon>>,
     meshes: Res<Assets<Mesh>>,
     mut action_event_reader: EventReader<SaveMeshEvent>,
 ) {
     for _ in action_event_reader.iter() {
         //
-        for (mesh_handle, mesh_meta) in mesh_query.iter() {
+        //
+        //
+        // get the first free directory with name "my_mesh#" in assets/meshes
+        let (mut save_path, i) = create_save_dir("my_mesh".to_string());
+        save_path.push("dummy.obj");
+        //
+        //
+        println!("saving to {:?}", save_path);
+        //
+        //
+        // Save all individual meshes and meta data for the meshes in the same folder
+        for (mesh_handle, transform, mesh_meta) in mesh_query.iter() {
+            //
+            //
+            // get the first free file name with name "my_mesh#_#" in assets/meshes/"my_mesh#/"
             let (free_save_path_obj, _k) =
-                get_free_save_name("my_mesh".to_string(), "obj".to_string());
-            println!("free_save_path : {:?}", free_save_path_obj);
+                get_free_save_name(save_path.clone(), "my_mesh".to_string(), "obj".to_string());
+            //
+            //
+            // println!("free_save_path : {:?}", free_save_path_obj);
 
             let free_save_path_points = free_save_path_obj.with_extension("points");
 
             save_mesh(&mesh_handle.0, &meshes, free_save_path_obj);
 
-            let save_mesh_meta: SaveMeshMeta = mesh_meta.into();
+            let (axis, transform_rotation_angle) = transform.rotation.to_axis_angle();
+            let angle = axis.z * transform_rotation_angle;
+
+            let save_mesh_meta: SaveMeshMeta = SaveMeshMeta {
+                points: mesh_meta.points.clone(),
+                translation: transform.translation.truncate(),
+                rotation: angle,
+            };
             let serialized = serde_json::to_string_pretty(&save_mesh_meta).unwrap();
             let mut output = File::create(free_save_path_points).unwrap();
             let _group_write_result = output.write(serialized.as_bytes());
@@ -162,24 +340,70 @@ pub fn quick_save(
     }
 }
 
-pub fn get_free_save_name(prefix: String, extension: String) -> (std::path::PathBuf, u64) {
+pub fn create_save_dir(folder_prefix_name: String) -> (std::path::PathBuf, u64) {
     let mut save_path = std::env::current_dir().unwrap();
-    save_path.push("assets/meshes/my_mesh0.obj");
+    save_path.push("assets/meshes/".to_string());
+    let mut k = 0;
+    loop {
+        let name = folder_prefix_name.to_string() + &k.to_string() + "/";
+        save_path.push(&name);
+
+        if !save_path.exists() {
+            break;
+        } else {
+            save_path = save_path.parent().unwrap().to_path_buf();
+        }
+
+        k += 1;
+    }
+    // create the directory
+    std::fs::create_dir(&save_path).unwrap();
+
+    (save_path, k)
+}
+
+// files don't get overwritten, which is why the name # is incremented
+pub fn get_free_save_name(
+    mut path_buf: PathBuf,
+    prefix: String,
+    extension: String,
+) -> (std::path::PathBuf, u64) {
+    // let mut save_path = std::env::current_dir().unwrap();
+    // save_path.push("assets/meshes/my_mesh0.obj");
     let mut k = 0;
     loop {
         let mut name = prefix.to_string();
         name.push_str(&(k.to_string()));
-        save_path = save_path.with_file_name(&name);
-        save_path = save_path.with_extension(&extension);
+        path_buf = path_buf.with_file_name(&name);
+        path_buf = path_buf.with_extension(&extension);
 
-        if !save_path.exists() {
+        if !path_buf.exists() {
             break;
         }
 
         k += 1;
     }
-    (save_path, k)
+    (path_buf, k)
 }
+
+// pub fn get_free_save_name(prefix: String, extension: String) -> (std::path::PathBuf, u64) {
+//     let mut save_path = std::env::current_dir().unwrap();
+//     save_path.push("assets/meshes/my_mesh0.obj");
+//     let mut k = 0;
+//     loop {
+//         let mut name = prefix.to_string();
+//         name.push_str(&(k.to_string()));
+//         save_path = save_path.with_file_name(&name);
+//         save_path = save_path.with_extension(&extension);
+
+//         if !save_path.exists() {
+//             break;
+//         }
+
+//         k += 1;
+//     }
+//     (save_path, k)
+// }
 
 pub fn save_mesh(mesh_handle: &Handle<Mesh>, meshes: &Res<Assets<Mesh>>, path: PathBuf) {
     let mesh = meshes.get(mesh_handle).unwrap();

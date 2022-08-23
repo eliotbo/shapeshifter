@@ -13,6 +13,7 @@ pub struct Globals {
     pub cutting_segment_thickness: f32,
     pub cutting_segment_color: Color,
     pub min_turn_angle: f32,
+    pub cut_polygon: Color,
 }
 
 impl Default for Globals {
@@ -20,9 +21,10 @@ impl Default for Globals {
         Self {
             polygon_segment_color: Color::PINK,
             polygon_color: Color::PURPLE,
-            cutting_segment_thickness: 4.0,
+            cutting_segment_thickness: 2.0,
             cutting_segment_color: Color::ORANGE,
             min_turn_angle: core::f32::consts::PI / 25.0,
+            cut_polygon: Color::TEAL,
         }
     }
 }
@@ -106,15 +108,17 @@ impl MeshMeta {
 #[derive(Serialize, Deserialize)]
 pub struct SaveMeshMeta {
     pub points: Vec<Vec2>,
+    pub translation: Vec2,
+    pub rotation: f32,
 }
 
-impl From<&MeshMeta> for SaveMeshMeta {
-    fn from(mesh_meta: &MeshMeta) -> Self {
-        Self {
-            points: mesh_meta.points.clone(),
-        }
-    }
-}
+// impl From<&MeshMeta> for SaveMeshMeta {
+//     fn from(mesh_meta: &MeshMeta) -> Self {
+//         Self {
+//             points: mesh_meta.points.clone(),
+//         }
+//     }
+// }
 
 #[derive(Clone, Copy, Debug)]
 pub struct Segment {

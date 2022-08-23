@@ -69,9 +69,9 @@ fn main() {
 }
 
 pub fn setup_mesh(mut load_event_writer: EventWriter<Load>) {
-    // load_event_writer.send(Load("my_mesh7".to_string()));
+    load_event_writer.send(Load("my_mesh1".to_string()));
     // load_event_writer.send(Load("my_mesh6".to_string()));
-    load_event_writer.send(Load("my_mesh8".to_string()));
+    // load_event_writer.send(Load("my_mesh8".to_string()));
 }
 
 use lyon::tessellation::math::Point;
