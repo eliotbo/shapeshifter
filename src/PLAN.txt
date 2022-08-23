@@ -1,8 +1,6 @@
 PLAN
 
 TODO:
-1) move the cut meshes outwards a bit with an animation use easing functions
-2) load mesh with translation
 3) grid + snap to grid
 
 

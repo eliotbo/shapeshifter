@@ -6,6 +6,7 @@ use bevy::{
 use crate::cut::*;
 use crate::io::{QuickLoad, SaveMeshEvent};
 use crate::poly::{MakingPolygon, MakingSegment};
+use crate::util::Globals;
 
 use lyon::tessellation::math::Point;
 
@@ -126,6 +127,7 @@ pub fn direct_make_polygon_action(
     mut quicksave_event_writer: EventWriter<SaveMeshEvent>,
     // mut end_cut_segment: EventWriter<EndCutSegment>,
     cursor: Res<Cursor>,
+    mut globals: ResMut<Globals>,
 ) {
     // let mouse_pressed = mouse_button_input.pressed(MouseButton::Left);
 
@@ -148,7 +150,7 @@ pub fn direct_make_polygon_action(
     let making_poly = making_poly_query.iter().next().is_some();
 
     // only used for pattern matching
-    let _pressed_g = keyboard_input.just_pressed(KeyCode::G);
+    let pressed_g = keyboard_input.just_pressed(KeyCode::G);
     let _pressed_h = keyboard_input.just_pressed(KeyCode::H);
     let pressed_s = keyboard_input.just_pressed(KeyCode::S);
     let pressed_l = keyboard_input.just_pressed(KeyCode::L);
@@ -204,18 +206,13 @@ pub fn direct_make_polygon_action(
         //
         (false, true, false) if pressed_s => quicksave_event_writer.send(SaveMeshEvent),
         (false, true, false) if pressed_l => quickload_event_writer.send(QuickLoad),
-        (false, false, false) if _pressed_g => {}
 
         (false, false, false) if pressed_escape && making_cut => {
             // delete cut segment
             let (entity, _) = making_cut_query.single();
             commands.entity(entity).despawn();
         }
-        (true, true, false) if _pressed_g => {}
-        (false, true, false) if _pressed_h => {}
-        (true, true, false) if _pressed_h => {}
-        (false, true, false) if _pressed_z => {}
-        (true, true, false) if _pressed_z => {}
+
         (false, false, false) if mouse_wheel_up => action_event.send(Action::RotateAt {
             pos: cursor.position,
             dir: 1.0,
@@ -254,6 +251,8 @@ pub fn direct_make_polygon_action(
         (true, true, _) if pressed_delete => action_event.send(Action::DeleteAll),
 
         (_, _, _) if pressed_delete => action_event.send(Action::DeleteSelected),
+
+        (_, _, _) if pressed_g => globals.snap_to_grid = !globals.snap_to_grid,
 
         _ => {}
     }

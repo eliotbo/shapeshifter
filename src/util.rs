@@ -14,6 +14,10 @@ pub struct Globals {
     pub cutting_segment_color: Color,
     pub min_turn_angle: f32,
     pub cut_polygon: Color,
+    pub min_velocity: f32,
+    pub friction: f32,
+    pub snap_to_grid: bool,
+    pub grid_size: f32,
 }
 
 impl Default for Globals {
@@ -25,8 +29,20 @@ impl Default for Globals {
             cutting_segment_color: Color::ORANGE,
             min_turn_angle: core::f32::consts::PI / 25.0,
             cut_polygon: Color::TEAL,
+            min_velocity: 0.5,
+            friction: 50.0,
+            snap_to_grid: true,
+            grid_size: 20.0,
         }
     }
+}
+
+#[derive(Component)]
+pub struct Animation {
+    pub force: Vec2,
+    pub area: f32,
+    pub velocity: Vec2,
+    pub position: Vec2,
 }
 
 pub struct EntityZ {
@@ -102,6 +118,34 @@ impl MeshMeta {
             hit_test_path(pos, transformed_path.iter(), FillRule::EvenOdd, 0.1),
             angle,
         )
+    }
+
+    // Test whether the path is intersecting with another path
+    pub fn intersect_test(
+        &self,
+        other: &Path,
+        transform: &Transform,
+        other_transform: &Transform,
+    ) -> bool {
+        let (transformed_path, _) = transform_path(&self.path, transform);
+        let (transformed_other, _) = transform_path(other, other_transform);
+
+        for seg in transformed_path.iter() {
+            let segment = Segment {
+                start: seg.from(),
+                end: seg.to(),
+            };
+            for other_seg in transformed_other.iter() {
+                let other_segment = Segment {
+                    start: other_seg.from(),
+                    end: other_seg.to(),
+                };
+                if segment.intersect(other_segment).is_some() {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
 

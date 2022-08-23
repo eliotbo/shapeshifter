@@ -117,9 +117,15 @@ pub fn start_polygon(
     cursor: Res<Cursor>,
 ) {
     // for start_poly in start_polygon_event_reader.iter() {
-    if let Some(Action::StartMakingPolygon { pos }) = action_event_reader.iter().next() {
+    if let Some(Action::StartMakingPolygon { mut pos }) = action_event_reader.iter().next() {
+        //
+        // snap end to grid
+        if globals.snap_to_grid {
+            pos = (pos.clone() / globals.grid_size).round() * globals.grid_size;
+        }
+
         let segment = Segment {
-            start: *pos,
+            start: pos,
             end: cursor.clone().into(),
         };
 
@@ -131,7 +137,7 @@ pub fn start_polygon(
         )))));
 
         let mut path = Path::builder();
-        path.begin(*pos);
+        path.begin(pos);
 
         // make invisible parent entity
         let parent_polygon = commands
@@ -143,8 +149,8 @@ pub fn start_polygon(
             ))
             .insert(MakingPolygon {
                 path,
-                current_point: *pos,
-                starting_point: *pos,
+                current_point: pos,
+                starting_point: pos,
                 all_points: vec![Vec2::new(pos.x, pos.y)],
             })
             .id();
@@ -157,7 +163,7 @@ pub fn start_polygon(
                 transform: segment_meta.transform,
                 ..Default::default()
             })
-            .insert(MakingSegment { start: *pos })
+            .insert(MakingSegment { start: pos })
             .insert(PolySegmentComponent)
             .id();
 
@@ -177,9 +183,15 @@ pub fn making_segment(
     for (mut transform, mesh_handle, making_segment) in query.iter_mut() {
         let mesh = meshes.get_mut(&mesh_handle.0).unwrap();
 
+        let mut end = point(cursor.position.x, cursor.position.y);
+        // snap end to grid
+        if globals.snap_to_grid {
+            end = (end / globals.grid_size).round() * globals.grid_size;
+        }
+
         let segment = Segment {
             start: making_segment.start,
-            end: point(cursor.position.x, cursor.position.y),
+            end,
         };
 
         let segment_meta = get_segment_meta(segment);
@@ -212,22 +224,27 @@ pub fn end_segment(
     // move one end of the segment to the cursor position
 
     // for _ in end_segment_event_reader.iter() {
-    if let Some(Action::EndSegment { pos }) = action_event_reader.iter().next() {
+    if let Some(Action::EndSegment { mut pos }) = action_event_reader.iter().next() {
         for (parent, entity, mut transform, mesh_handle, making_segment) in segment_query.iter_mut()
         {
+            // snap end to grid
+            if globals.snap_to_grid {
+                pos = (pos / globals.grid_size).round() * globals.grid_size;
+            }
+
             //
             // update polygon
             let mut making_polygon = polygon_query.get_mut(**parent).unwrap();
             // let current_position = point(cursor.position.x, cursor.position.y);
-            making_polygon.current_point = *pos; //current_position;
-            making_polygon.path.line_to(*pos);
+            making_polygon.current_point = pos; //current_position;
+            making_polygon.path.line_to(pos);
             making_polygon.all_points.push(Vec2::new(pos.x, pos.y));
 
             let mesh = meshes.get_mut(&mesh_handle.0).unwrap();
 
             let segment = Segment {
                 start: making_segment.start,
-                end: *pos,
+                end: pos,
             };
 
             let segment_meta = get_segment_meta(segment);
@@ -241,7 +258,7 @@ pub fn end_segment(
 
             commands.entity(entity).remove::<MakingSegment>();
 
-            start_segment_event_writer.send(StartMakingSegment { start: *pos });
+            start_segment_event_writer.send(StartMakingSegment { start: pos });
         }
     }
 }

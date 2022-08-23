@@ -2,6 +2,7 @@ use crate::input::Cursor;
 use crate::input::*;
 use crate::material::*;
 use crate::poly::make_polygon_mesh;
+use crate::poly::Polygon;
 use crate::util::*;
 
 use bevy::{
@@ -10,9 +11,11 @@ use bevy::{
 };
 
 use lyon::algorithms::area::*;
+use lyon::algorithms::math::Vector;
 use lyon::algorithms::raycast::*;
 use lyon::tessellation::math::{point, Point};
 use lyon::tessellation::path::Path;
+// use lyon::algorithms::raycast::*;
 
 use rand::{thread_rng, Rng};
 
@@ -29,6 +32,22 @@ pub struct JustMadeCut {
     pub segment: Segment,
 }
 
+#[derive(Debug, Clone)]
+pub enum PolyPoint {
+    Original(Point),
+    Intersect(Point),
+}
+
+impl PolyPoint {
+    pub fn is_intersect(&self) -> bool {
+        if let PolyPoint::Intersect(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+}
+
 pub struct CutPlugin;
 
 impl Plugin for CutPlugin {
@@ -36,6 +55,7 @@ impl Plugin for CutPlugin {
         app.add_system(start_cut_segment)
             .add_system(end_cut_segment)
             .add_system(making_cut_segment)
+            .add_system(move_after_cut)
             .add_system(perform_cut);
     }
 }
@@ -146,25 +166,31 @@ pub fn end_cut_segment(
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum PolyPoint {
-    Original(Point),
-    Intersect(Point),
-}
+pub fn move_after_cut(
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut Transform, &mut Animation)>,
+    globals: Res<Globals>,
+    time: Res<Time>,
+) {
+    for (entity, mut transform, mut animation) in query.iter_mut() {
+        //
+        // compute new velocity
+        animation.velocity = animation.velocity
+            - animation.velocity.normalize() * globals.friction * time.delta_seconds();
 
-impl PolyPoint {
-    pub fn is_intersect(&self) -> bool {
-        if let PolyPoint::Intersect(_) = self {
-            true
-        } else {
-            false
+        //
+        // compute new position
+        animation.position = animation.position + animation.velocity * time.delta_seconds();
+
+        transform.translation = animation.position.extend(transform.translation.z);
+
+        // *transform =
+
+        if animation.velocity.length() < globals.min_velocity {
+            commands.entity(entity).remove::<Animation>();
         }
     }
 }
-
-use crate::poly::Polygon;
-use lyon::algorithms::math::Vector;
-// use lyon::algorithms::raycast::*;
 
 pub fn perform_cut(
     mut commands: Commands,
@@ -179,7 +205,6 @@ pub fn perform_cut(
     mut poly_order: ResMut<PolyOrder>,
 ) {
     for (cut_entity, cut) in cut_query.iter() {
-        println!("cutting with segment: {:?}", cut.segment);
         let mut do_remove_cut_entity = true;
         for (poly_entity, _material_handle, transform, mesh_meta) in polygon_query.iter_mut() {
             //
@@ -199,8 +224,6 @@ pub fn perform_cut(
             // only compute the cut if the ray from the cut hits the polygon
             if let None = maybe_hit {
                 continue;
-            } else {
-                info!("ray hit");
             }
             let mut points: Vec<PolyPoint> = Vec::new();
 
@@ -223,8 +246,6 @@ pub fn perform_cut(
                     points.push(PolyPoint::Intersect(intersection));
                 }
             }
-
-            info!("points: {:?}", points);
 
             let mut only_intersects: Vec<(usize, &Point)> = points
                 .iter()
@@ -386,7 +407,7 @@ pub fn perform_cut(
                 let mat_handle = fill_materials.add(FillMesh2dMaterial {
                     color: Color::TEAL.into(),
                     show_com: 0.0, // show center of mass
-                    selected: 1.0,
+                    selected: 0.0,
                 });
 
                 let translation =
@@ -398,6 +419,17 @@ pub fn perform_cut(
 
                 let fill_transform =
                     Transform::from_translation(center_of_mass.extend(rng.gen::<f32>() + 1.0));
+
+                // compute normal vector to direction
+                let mut cut_normal = Vec2::new(-direction.y, direction.x);
+                // compute sign of normal using the center of mass of the cut polygon and the cut starting ppoint
+                let sign = cut_normal
+                    .dot(Vec2::new(
+                        center_of_mass.x - cut.segment.start.x,
+                        center_of_mass.y - cut.segment.start.y,
+                    ))
+                    .signum();
+                cut_normal = cut_normal * sign;
 
                 let new_entity = commands
                     .spawn_bundle(MaterialMesh2dBundle {
@@ -416,6 +448,12 @@ pub fn perform_cut(
                             .iter()
                             .map(|x| *x - center_of_mass)
                             .collect(),
+                    })
+                    .insert(Animation {
+                        force: Vec2::new(0.0, 0.0),
+                        area,
+                        velocity: cut_normal * 0.05,
+                        position: center_of_mass,
                     })
                     .id();
 

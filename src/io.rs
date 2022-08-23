@@ -7,7 +7,7 @@ use crate::material::FillMesh2dMaterial;
 use crate::poly::Polygon;
 use crate::util::*;
 
-use std::fs::create_dir;
+// use std::fs::create_dir;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
@@ -64,13 +64,14 @@ pub fn quick_load_mesh(
 
         //
         //
-        // insert the first name
-        save_path.push(prefix.clone() + "0" + "." + &extension);
+        let all_files = std::fs::read_dir(&save_path).unwrap();
+        let single_mesh = all_files.count() == 2; // obj and point
+        info!("Is single_mesh?: {:?}", single_mesh);
 
         //
         //
-        let all_files = std::fs::read_dir(save_prepath).unwrap();
-        let single_mesh = all_files.count() == 2; // obj and point
+        // insert the first name
+        save_path.push(prefix.clone() + "0" + "." + &extension);
 
         //
         //
@@ -87,9 +88,6 @@ pub fn quick_load_mesh(
 
             save_path = save_path.with_file_name(&name);
             save_path = save_path.with_extension(&extension);
-
-            info!("quick loading mesh: {:?}", save_path);
-            info!("Is file?: {:?}", save_path.exists());
 
             // Only condition is that the file exists. If not, loading is terminated
             if !save_path.is_file() {
@@ -303,7 +301,7 @@ pub fn quick_save(
         //
         //
         // get the first free directory with name "my_mesh#" in assets/meshes
-        let (mut save_path, i) = create_save_dir("my_mesh".to_string());
+        let (mut save_path, _i) = create_save_dir("my_mesh".to_string());
         save_path.push("dummy.obj");
         //
         //
