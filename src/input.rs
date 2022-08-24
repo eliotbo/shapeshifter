@@ -7,12 +7,12 @@ use crate::cut::*;
 // use crate::load::QuickLoad;
 use crate::poly::{MakingPolygon, MakingSegment};
 // use crate::save::SaveMeshEvent;
-use crate::util::Globals;
+use crate::util::{Globals, MovingPathPoint};
 // use crate::util::Globals;
 
 use lyon::tessellation::math::Point;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Action {
     StartMakingPolygon { pos: Point },
     EndMakingPolygon,
@@ -36,6 +36,7 @@ pub enum Action {
     QuickLoad,
     QuickSave,
     LoadTarget,
+    MovePathPoint,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -163,6 +164,8 @@ pub fn direct_action(
     let making_poly = making_poly_query.iter().next().is_some();
 
     // only used for pattern matching
+    let pressing_q = keyboard_input.pressed(KeyCode::Q);
+
     let pressed_g = keyboard_input.just_pressed(KeyCode::G);
     let _pressed_h = keyboard_input.just_pressed(KeyCode::H);
     let pressed_s = keyboard_input.just_pressed(KeyCode::S);
@@ -228,6 +231,10 @@ pub fn direct_action(
             if (pressed_enter || mouse_right_just_pressed || pressed_space) && making_poly =>
         {
             action_event.send(Action::EndMakingPolygon);
+        }
+
+        (false, false, false) if mouse_just_pressed && pressing_q => {
+            action_event.send(Action::MovePathPoint);
         }
         //
         //
@@ -298,8 +305,8 @@ pub fn direct_action(
         //
         //
         //
-        // translation
-        (false, false, false) if mouse_just_pressed => {
+        // translation (q is for moving points in level-making)
+        (false, false, false) if mouse_just_pressed && !pressing_q => {
             info!("translation");
             action_event.send(Action::MaybeTranslatePoly)
         }
@@ -307,7 +314,7 @@ pub fn direct_action(
         //
         //
         // rotation
-        (false, false, false) if mouse_right_just_pressed => {
+        (false, false, false) if mouse_right_just_pressed && !pressing_q => {
             info!("rotation");
             action_event.send(Action::MaybeRotatePoly)
         }
@@ -318,6 +325,7 @@ pub fn direct_action(
 pub fn direct_release_action(
     mut commands: Commands,
     segment_query: Query<Entity, With<MakingSegment>>,
+    path_point_query: Query<Entity, With<MovingPathPoint>>,
     mouse_button_input: Res<Input<MouseButton>>,
     // mut start_polygon: EventWriter<StartMakingPolygon>,
     // mut action_event_writer: EventWriter<Action>,
@@ -329,6 +337,10 @@ pub fn direct_release_action(
         // delete MakingSegment if it exists
         for entity in segment_query.iter() {
             commands.entity(entity).remove::<MakingSegment>();
+        }
+        for entity in path_point_query.iter() {
+            commands.entity(entity).remove::<MovingPathPoint>();
+            info!("removing MovingPathPoint");
         }
     }
 }

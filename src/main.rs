@@ -23,10 +23,11 @@ use target::*;
 use util::*;
 use view::*;
 
+use bevy_easings::*;
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 // use bevy_inspector_egui::WorldInspectorPlugin;
-use bevy_obj::*;
+// use bevy_obj::*;
 
 fn main() {
     App::new()
@@ -34,7 +35,7 @@ fn main() {
             title: "pen".to_string(),
             width: 1200.,
             height: 800.,
-            // vsync: true,
+            // present_mode: bevy::window::PresentMode::Immediate,
             ..Default::default()
         })
         //
@@ -44,7 +45,6 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_event::<StartMakingSegment>()
         .add_event::<Action>()
-        // .add_event::<QuickLoad>()
         .add_event::<Load>()
         .add_event::<TestCollisionEvent>()
         .add_event::<TestWinEvent>()
@@ -60,22 +60,21 @@ fn main() {
         .add_plugin(SavePlugin)
         // .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(CutPlugin)
-        .add_plugin(ObjPlugin)
         .add_plugin(PolyMakerPlugin)
         .add_plugin(TargetPlugin)
         .add_startup_system(camera_setup)
         .add_startup_system(setup_mesh)
         .add_system(record_mouse_events_system.exclusive_system().at_start())
-        .add_system(quick_load_target)
         .add_system(direct_action)
-        .add_system(quick_load_mesh)
-        .add_system(quick_save)
         .add_system(glow_poly)
         .add_system(rotate_once)
         .add_system(delete_poly)
         .add_system(toggle_grid)
         .add_system(test_collisions)
         .add_system(revert_to_init)
+        .add_system(move_path_point)
+        .add_system(hover_path_point)
+        .add_system(direct_release_action)
         //
         // delete me please
         .add_system(debug_input)
@@ -86,14 +85,12 @@ fn main() {
 pub fn setup_mesh(
     mut load_event_writer: EventWriter<Load>,
     mut action_event_writer: EventWriter<Action>,
-    // mut quickload_event_writer: EventWriter<QuickLoad>,
 ) {
-    load_event_writer.send(Load("my_mesh2".to_string()));
-    // quickload_event_writer.send(QuickLoad);
+    // load_event_writer.send(Load("my_mesh2".to_string()));
+    // action_event_writer.send(Action::LoadDialog);
+    action_event_writer.send(Action::QuickLoad);
     action_event_writer.send(Action::QuickLoadTarget);
 }
-
-use bevy_easings::*;
 
 pub fn debug_input(mut action_event_reader: EventReader<Action>) {
     for action in action_event_reader.iter() {

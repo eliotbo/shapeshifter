@@ -530,3 +530,139 @@ pub fn end_polygon(
         }
     }
 }
+
+// gets a MeshMeta and ajusts its Path by translating one of its points, that point that
+// is closest to the cursor position
+pub fn hover_path_point(
+    mut commands: Commands,
+    mut polygon_query: Query<(Entity, &Transform, &mut MeshMeta), With<Polygon>>,
+    path_point_query: Query<(Entity, &PathPoint)>,
+    cursor: Res<Cursor>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut action_event_reader: EventReader<Action>,
+) {
+    for (entity, _) in path_point_query.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    for (entity, transform, mut mesh_meta) in polygon_query.iter_mut() {
+        // let (transformed_path, _) = transform_path(&mesh_meta.path, transform);
+        // info!("points: {:?}", mesh_meta.points);
+        // let mut iter_over_path = transformed_path.iter();
+        // iter_over_path.next(); // skip first point
+
+        //
+
+        //
+        //
+        //
+        if let Some((index, point)) = mesh_meta.get_close_from_pos(cursor.position, transform, 30.)
+        {
+            let mesh = bevy::sprite::Mesh2dHandle(
+                meshes.add(Mesh::from(shape::Quad::new(Vec2::new(3., 3.)))),
+            );
+            // spawn a circle at the point
+            commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    material: materials.add(Color::rgb(0.5, 0.4, 0.5).into()),
+                    mesh: mesh.clone(),
+                    transform: Transform::from_translation(point.extend(1.0)),
+                    ..Default::default()
+                })
+                .insert(PathPoint);
+
+            if let Some(Action::MovePathPoint) = action_event_reader.iter().next() {
+                commands.entity(entity).insert(MovingPathPoint {
+                    index,
+                    previous_pos: point,
+                });
+            }
+        }
+    }
+}
+
+pub fn move_path_point(
+    mut commands: Commands,
+    mut polygon_query: Query<(
+        Entity,
+        &mut Transform,
+        &mut Mesh2dHandle,
+        &mut MeshMeta,
+        &MovingPathPoint,
+    )>,
+    // mut path_point_query: Query<(Entity, &PathPoint)>,
+    cursor: Res<Cursor>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    for (entity, mut transform, mut mesh_handle, mut mesh_meta, moving_path_point) in
+        polygon_query.iter_mut()
+    {
+        // let mut path = *mesh_meta.path;
+
+        // let mut builder = Path::builder();
+        // let mut all_points = Vec::new();
+        //
+        //
+        //
+        // let l = mesh_meta.points.len();
+        println!("START: {:#?}", mesh_meta.points);
+
+        // if let Some(what) = mesh_meta.path.iter().nth(moving_path_point.index) {
+        //     info!("{:?}", what.from());
+        // }
+
+        if let Some(v) = mesh_meta.points.iter_mut().nth(moving_path_point.index) {
+            *v = moving_path_point.previous_pos + (cursor.position - cursor.last_click_position);
+        }
+
+        let mut builder = Path::builder();
+        for (k, pt) in mesh_meta.points.iter().enumerate() {
+            let seg = Point::new(pt.x, pt.y);
+            if k == 0 {
+                builder.begin(seg);
+            } else {
+                builder.line_to(seg);
+            }
+        }
+        builder.close();
+        mesh_meta.path = builder.build();
+
+        // for (k, seg) in mesh_meta.path.clone().iter().enumerate() {
+        //     println!("path: {:#?}", mesh_meta.path);
+        //     //
+        //     //
+        //     let mut point_pos_v2 = Vec2::new(seg.from().x, seg.from().y);
+        //     //
+        //     //
+        //     //
+
+        //     if k == moving_path_point.index {
+        //         // info!("k : {}", k);
+        //         point_pos_v2 =
+        //             moving_path_point.previous_pos + (cursor.position - cursor.last_click_position);
+        //     }
+
+        //     let point_pos = Point::new(point_pos_v2.x, point_pos_v2.y);
+
+        //     if k == 0 {
+        //         builder.begin(point_pos);
+        //     } else {
+        //         builder.line_to(point_pos);
+        //         all_points.push(point_pos_v2);
+        //     }
+        // }
+
+        // builder.close();
+
+        // mesh_meta.path = builder.build();
+
+        let (mesh, _center_of_mass) = make_polygon_mesh(&mesh_meta.path, false);
+
+        *mesh_handle = Mesh2dHandle(meshes.add(mesh));
+
+        // transform.translation = Vec3::new(0., 0., transform.translation.z);
+        *transform = Transform::identity();
+    }
+}

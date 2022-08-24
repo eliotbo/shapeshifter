@@ -27,6 +27,7 @@ impl Plugin for LoadPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(quick_load_mesh)
             .add_system(load_target)
+            .add_system(load_mesh)
             .add_system(quick_load_target);
     }
 }
@@ -81,7 +82,7 @@ pub fn quick_load_target(
 // either loads the "assets/meshes/my_mesh0" folder with the QuickLoad event
 // or loads the "assets/meshes/<name>" folder with the Load event.
 //
-// Groups of polygons are not tagged as a group.
+// Groups of polygons are not tagged as a group though
 //
 //
 pub fn quick_load_mesh(
@@ -101,7 +102,7 @@ pub fn quick_load_mesh(
     let prefix = "my_mesh".to_string();
     let extension = "points".to_string();
 
-    if let Some(Action::QuickLoad) = action_event_reader.iter().next() {
+    if action_event_reader.iter().any(|x| x == &Action::QuickLoad) {
         //
         //
         // to change the folder that QuickLoad will load, change the string here
@@ -110,25 +111,6 @@ pub fn quick_load_mesh(
 
     for load in load_event_reader.iter() {
         load_names.push(load.0.clone());
-    }
-
-    if let Some(Action::LoadDialog) = action_event_reader.iter().next() {
-        // let maybe_dialog_path = open_file_dialog("save_name", None, "point");
-        let res = rfd::FileDialog::new()
-            // .set_file_name(&save_prepath)
-            .set_directory(&save_prepath)
-            .pick_file();
-        // .save_file();
-
-        if let Some(dir) = res {
-            if let Some(name) = dir.file_name() {
-                // if let Ok(name_str) = (*name).into_string() {
-                // load_names.push(name_str.to_string());
-                // }
-                println!("dir: {:?}", name);
-            }
-            println!("dir: {:?}", dir);
-        }
     }
 
     for load_name in load_names.iter() {
@@ -193,6 +175,122 @@ pub fn quick_load_mesh(
             } else {
                 globals.cut_polygon
             };
+
+            let mat_handle = fill_materials.add(FillMesh2dMaterial {
+                color: poly_color.into(),
+                show_com: 0.0,
+                selected: 0.0,
+            });
+
+            //
+            //
+            //
+            // build the polygon
+            //
+            let mut path: NoAttributes<BuilderImpl> = Path::builder();
+
+            for (idx, pos) in loaded_mesh_params.points.iter().enumerate() {
+                //
+                if idx == 0 {
+                    path.begin(Point::new(pos.x, pos.y));
+                } else {
+                    path.line_to(Point::new(pos.x, pos.y));
+                };
+            }
+
+            path.close();
+
+            let built_path: Path = path.clone().build();
+
+            let (mesh, center_of_mass) = make_polygon_mesh(&built_path, true);
+
+            // // Sets path center of mass to the origin
+            let path_translation =
+                lyon::geom::Translation::new(-center_of_mass.x, -center_of_mass.y);
+            let transformed_path = built_path.transformed(&path_translation);
+
+            let mut rng = thread_rng();
+            let id = rng.gen::<u64>();
+            let z = rng.gen::<f32>();
+
+            let mut transform =
+                Transform::from_translation(loaded_mesh_params.translation.extend(z));
+            transform.rotate_axis(Vec3::Z, loaded_mesh_params.rotation);
+
+            let mesh_handle = meshes.add(mesh);
+
+            //
+            //
+            //
+            // spawn the polygon
+            let _entity = commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: Mesh2dHandle(mesh_handle.clone()),
+                    material: mat_handle,
+                    transform,
+                    ..default()
+                })
+                .insert(Polygon)
+                .insert(MeshMeta {
+                    id,
+                    path: transformed_path.clone(),
+                    points: loaded_mesh_params.points, //TODO
+                    previous_transform: transform,
+                })
+                .id();
+
+            let ghost_mat_handle = fill_materials.add(FillMesh2dMaterial {
+                color: globals.ghost_color.into(),
+                show_com: 0.0,
+                selected: 0.0,
+            });
+
+            let mut ghost_transform = transform;
+            ghost_transform.translation.z = -10.0;
+
+            let _ghost_entity = commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: Mesh2dHandle(mesh_handle.clone()),
+                    material: ghost_mat_handle,
+                    transform: ghost_transform,
+                    ..default()
+                })
+                .insert(Ghost)
+                .id();
+        }
+    }
+}
+
+// simple dialog load
+pub fn load_mesh(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
+    mut action_event_reader: EventReader<Action>,
+    globals: Res<Globals>,
+) {
+    if action_event_reader.iter().any(|x| x == &Action::LoadDialog) {
+        let mut save_prepath = std::env::current_dir().unwrap();
+        save_prepath.push("assets/meshes/".to_owned());
+
+        // if let Some(Action::LoadDialog) = action_event_reader.iter().next() {
+
+        info!("load dialog AHHHH");
+        // let maybe_dialog_path = open_file_dialog("save_name", None, "point");
+        if let Some(file_path) = rfd::FileDialog::new()
+            // .set_file_name(&save_prepath)
+            .set_directory(&save_prepath)
+            .pick_file()
+        {
+            // get mesh meta info using the .points extension
+            //
+
+            let mut file = std::fs::File::open(file_path).unwrap();
+            let mut contents = String::new();
+            file.read_to_string(&mut contents).unwrap();
+            let loaded_mesh_params: SaveMeshMeta = serde_json::from_str(&contents).unwrap();
+
+            let poly_color = globals.polygon_color;
 
             let mat_handle = fill_materials.add(FillMesh2dMaterial {
                 color: poly_color.into(),

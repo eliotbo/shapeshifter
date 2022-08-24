@@ -66,6 +66,15 @@ pub struct EntityZ {
 }
 
 #[derive(Component)]
+pub struct PathPoint;
+
+#[derive(Component)]
+pub struct MovingPathPoint {
+    pub index: usize,
+    pub previous_pos: Vec2,
+}
+
+#[derive(Component)]
 pub struct Hovered;
 
 #[derive(Component)]
@@ -99,11 +108,71 @@ pub type MeshId = u64;
 pub struct MeshMeta {
     pub id: MeshId,
     pub path: Path,
+    // pub center_of_mass: Vec2,
     pub points: Vec<Vec2>,
     pub previous_transform: Transform,
 }
 
 impl MeshMeta {
+    //
+    //
+    //
+    // get the closest point on the path to the given point
+    pub fn get_close_from_pos(
+        &mut self,
+        pos: Vec2,
+        transform: &Transform,
+        limit: f32,
+    ) -> Option<(usize, Vec2)> {
+        //
+        self.uptdate_points(transform);
+
+        let mut closest_index = None;
+        let mut closest_distance = limit;
+        for (index, point) in self.points.iter().enumerate() {
+            let distance = (*point - pos).length();
+            if distance < closest_distance {
+                closest_index = Some((index, *point));
+                closest_distance = distance;
+            }
+        }
+
+        closest_index
+    }
+
+    // converts a Path to Vec<Vec2> and update its points field
+    pub fn uptdate_points(&mut self, transform: &Transform) {
+        let (transformed_path, _) = transform_path(&self.path, transform);
+
+        // the first point is the Begin of the path, which is redundant
+        let mut iter_over_path = transformed_path.iter();
+        iter_over_path.next();
+
+        let mut new_points = Vec::new();
+
+        for seg in iter_over_path {
+            //
+            //
+            let point_pos = match seg {
+                lyon::path::Event::Line { from, to: _ } => Vec2::new(from.x, from.y),
+                lyon::path::Event::End {
+                    last,
+                    first: _,
+                    close: _,
+                } => Vec2::new(last.x, last.y),
+                //
+                //
+                //
+                lyon::path::Event::Begin { at: _ } => continue,
+                _ => continue,
+            };
+
+            new_points.push(point_pos);
+        }
+
+        self.points = new_points;
+    }
+
     // Test whether the mouse is inside the polygon
     pub fn hit_test(&self, pos: &Point, transform: &Transform) -> (bool, f32) {
         //
@@ -405,20 +474,20 @@ pub fn make_polygon_mesh(path: &Path, shift_com: bool) -> (Mesh, Vec2) {
     return (mesh, center_of_mass);
 }
 
-// pub fn make_square() -> (Path, Vec<Vec2>) {
-//     let mut path = Path::builder();
-//     path.begin(point(0.0, 0.0));
-//     path.line_to(point(100.0, 0.0));
-//     path.line_to(point(100.0, 100.0));
-//     path.line_to(point(0.0, 100.0));
-//     path.close();
-//     let built_path = path.build();
+pub fn make_square() -> (Path, Vec<Vec2>) {
+    let mut path = Path::builder();
+    path.begin(point(0.0, 0.0));
+    path.line_to(point(100.0, 0.0));
+    path.line_to(point(100.0, 100.0));
+    path.line_to(point(0.0, 100.0));
+    path.close();
+    let built_path = path.build();
 
-//     let mut points = Vec::new();
-//     points.push(Vec2::new(0.0, 0.0));
-//     points.push(Vec2::new(100.0, 0.0));
-//     points.push(Vec2::new(100.0, 100.0));
-//     points.push(Vec2::new(0.0, 100.0));
+    let mut points = Vec::new();
+    points.push(Vec2::new(0.0, 0.0));
+    points.push(Vec2::new(100.0, 0.0));
+    points.push(Vec2::new(100.0, 100.0));
+    points.push(Vec2::new(0.0, 100.0));
 
-//     (built_path, points)
-// }
+    (built_path, points)
+}

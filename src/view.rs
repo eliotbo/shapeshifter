@@ -19,6 +19,9 @@ pub enum PossibleMoves {
 //
 // make polygon glow upon hover and insert Rotating (right mouse click) or
 // Translating (left mouse click) component
+//
+//
+// TODO: move inputs to input
 pub fn glow_poly(
     mut commands: Commands,
     mouse_button_input: Res<Input<MouseButton>>,
@@ -46,6 +49,7 @@ pub fn glow_poly(
 
     let ctrl = keyboard_input.pressed(KeyCode::LControl);
     let shift = keyboard_input.pressed(KeyCode::LShift);
+    let q = keyboard_input.pressed(KeyCode::Q);
 
     for (entity, material_handle, transform, mesh_meta, maybe_moving) in query.iter() {
         //
@@ -71,14 +75,14 @@ pub fn glow_poly(
         let mut material = materials.get_mut(&material_handle).unwrap();
         material.show_com = 0.0;
 
-        if is_inside_poly && left_mouse_click && !ctrl && !shift {
+        if is_inside_poly && left_mouse_click && !ctrl && !shift && !q {
             maybe_move_entity = Some((
                 entity,
                 PossibleMoves::Translation(transform.translation.truncate()),
             ));
         }
 
-        if is_inside_poly && right_mouse_click && !ctrl && !shift {
+        if is_inside_poly && right_mouse_click && !ctrl && !shift && !q {
             maybe_move_entity = Some((entity, PossibleMoves::Rotation(angle)));
         }
 
@@ -93,29 +97,31 @@ pub fn glow_poly(
     //
 
     // TODO: prioritize higher z pos
-    if let Some((entity, moves)) = maybe_move_entity {
-        let (_, material_handle, _, _, _) = query.get(entity).unwrap();
-        let mut material = materials.get_mut(&material_handle).unwrap();
-        match moves {
-            PossibleMoves::Translation(translation) => {
-                commands.entity(entity).insert(Translating {
-                    starting_pos: translation,
-                });
-            }
-            PossibleMoves::Rotation(angle) => {
-                commands.entity(entity).insert(Rotating {
-                    starting_angle: angle,
-                });
-            }
-        }
-
-        material.show_com = 1.0;
-    } else if let Some(highlighted_entity) = maybe_highlight_entity {
-        //
-        // if no movement is happening, highlight one entity that is hovered over
-        if let Ok((_, material_handle, _, _, _)) = query.get(highlighted_entity) {
+    if !q {
+        if let Some((entity, moves)) = maybe_move_entity {
+            let (_, material_handle, _, _, _) = query.get(entity).unwrap();
             let mut material = materials.get_mut(&material_handle).unwrap();
+            match moves {
+                PossibleMoves::Translation(translation) => {
+                    commands.entity(entity).insert(Translating {
+                        starting_pos: translation,
+                    });
+                }
+                PossibleMoves::Rotation(angle) => {
+                    commands.entity(entity).insert(Rotating {
+                        starting_angle: angle,
+                    });
+                }
+            }
+
             material.show_com = 1.0;
+        } else if let Some(highlighted_entity) = maybe_highlight_entity {
+            //
+            // if no movement is happening, highlight one entity that is hovered over
+            if let Ok((_, material_handle, _, _, _)) = query.get(highlighted_entity) {
+                let mut material = materials.get_mut(&material_handle).unwrap();
+                material.show_com = 1.0;
+            }
         }
     }
 }
@@ -158,7 +164,7 @@ pub fn transform_poly(
         for (entity, _, _) in queries.p1().iter_mut() {
             commands.entity(entity).remove::<Translating>();
             collision_test_writer.send(TestCollisionEvent(entity));
-            info!("sending collision after translating");
+            // info!("sending collision after translating");
         }
     }
 
