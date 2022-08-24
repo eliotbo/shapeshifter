@@ -1,8 +1,17 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    render::{mesh::Indices, render_resource::PrimitiveTopology},
+    // sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+};
+
 use lyon::algorithms::hit_test::*;
 use lyon::path::FillRule;
 use lyon::tessellation::math::{point, Point};
 use lyon::tessellation::path::Path;
+
+use lyon::tessellation::geometry_builder::simple_builder;
+
+use lyon::tessellation::{FillOptions, FillTessellator, VertexBuffers};
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -264,6 +273,136 @@ pub fn transform_path(path: &Path, transform: &Transform) -> (Path, f32) {
     let transformed_path = path.clone().transformed(&rot).transformed(&translation);
 
     return (transformed_path, angle);
+}
+
+// make a mesh from a path
+//
+// shift_com: shift the center of mass of path to origin.
+pub fn make_polygon_mesh(path: &Path, shift_com: bool) -> (Mesh, Vec2) {
+    let mut buffers: VertexBuffers<Point, u16> = VertexBuffers::new();
+
+    let mut vertex_builder = simple_builder(&mut buffers);
+
+    // Create the tessellator.
+    let mut tessellator = FillTessellator::new();
+
+    // Compute the tessellation.
+    let result = tessellator.tessellate_path(path, &FillOptions::default(), &mut vertex_builder);
+    assert!(result.is_ok());
+
+    let mut mesh_pos_attributes: Vec<[f32; 3]> = Vec::new();
+    let mut mesh_attr_uvs: Vec<[f32; 2]> = Vec::new();
+    let mut new_indices: Vec<u32> = Vec::new();
+
+    // show points from look-up table
+
+    let color = Color::WHITE;
+    let mut colors = Vec::new();
+
+    for position in buffers.vertices[..].iter() {
+        let pos_x = position.x;
+        let pos_y = position.y;
+        mesh_pos_attributes.push([pos_x, pos_y, 0.0]);
+
+        colors.push([color.r(), color.g(), color.b(), 1.0]);
+    }
+
+    for ind in buffers.indices[..].iter().rev() {
+        new_indices.push(ind.clone() as u32);
+    }
+    //
+    //
+    //
+    //
+    /////////////////////// compute center of mass /////////////////////////
+    //
+    //
+    // compute center of mass using center of mass of each triangle
+    //
+    let mut center_of_mass = Vec2::ZERO;
+    let num_triangles = new_indices.iter().count() / 3;
+
+    for ind in 0..num_triangles {
+        let index = ind * 3;
+        let triangle = [
+            mesh_pos_attributes[new_indices[index] as usize],
+            mesh_pos_attributes[new_indices[index + 1] as usize],
+            mesh_pos_attributes[new_indices[index + 2] as usize],
+        ];
+
+        center_of_mass += Vec2::new(
+            (triangle[0][0] + triangle[1][0] + triangle[2][0]) / 3.0,
+            (triangle[0][1] + triangle[1][1] + triangle[2][1]) / 3.0,
+        ) / num_triangles as f32;
+    }
+
+    /////////////////////// compute center of mass /////////////////////////
+    //
+    //
+    //
+    //
+
+    // adjust the mesh position attributes such that the center of mass is at the origin
+    mesh_pos_attributes = mesh_pos_attributes
+        .iter()
+        .map(|x| {
+            let new_pos = Vec2::new(x[0], x[1]) - center_of_mass * shift_com as i32 as f32;
+            [new_pos.x, new_pos.y, 0.0]
+        })
+        .collect();
+
+    //
+    //
+    //
+    //
+    //////////////////////////// uvs ///////////////////////////////
+    //
+    let xs: Vec<f32> = mesh_pos_attributes.iter().map(|v| v[0]).collect();
+    let ys: Vec<f32> = mesh_pos_attributes.iter().map(|v| v[1]).collect();
+
+    // find the min and max of a vec of f32
+    fn bounds(v: &Vec<f32>) -> (f32, f32) {
+        let mut min = v[0];
+        let mut max = v[0];
+        for i in 1..v.len() {
+            if v[i] < min {
+                min = v[i];
+            }
+            if v[i] > max {
+                max = v[i];
+            }
+        }
+        (min, max)
+    }
+
+    let bounds_x = bounds(&xs);
+    let size_x = bounds_x.1 - bounds_x.0;
+    let bounds_y = bounds(&ys);
+    let size_y = bounds_y.1 - bounds_y.0;
+
+    let mut normals = Vec::new();
+    for pos in &mesh_pos_attributes {
+        let (pos_x, pos_y) = (pos[0], pos[1]);
+
+        mesh_attr_uvs.push([
+            1.0 * (pos_x - bounds_x.0) / size_x,
+            1.0 * (pos_y - bounds_y.0) / size_y,
+        ]);
+
+        normals.push([0.0, 0.0, 1.0]);
+    }
+    //
+    //////////////////////////// uvs ///////////////////////////////
+
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, mesh_pos_attributes.clone());
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+    mesh.set_indices(Some(Indices::U32(new_indices)));
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, mesh_attr_uvs);
+
+    return (mesh, center_of_mass);
 }
 
 // pub fn make_square() -> (Path, Vec<Vec2>) {

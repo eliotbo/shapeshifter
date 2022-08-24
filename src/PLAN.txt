@@ -1,10 +1,9 @@
 PLAN
 
 TODO:
-000) make polygon maker plugin (easily removable from final game)
-001) add grid to cursor
+
 002) save/load mesh with popup window
-003) rotate by 180 + rotate min angle should be a factor of 90 degrees
+
 
 00) make crate!
 
@@ -70,6 +69,14 @@ POLISHING
     and use a polygon SDF. Make Corners rounded.
             Make shaders for each theme.
             Make contours for each theme.
+
+    System that helps player to place polygon as tightly as possible inside the target
+            player presses an arrow key and the polygon translates as far as possible in that direction
+            ctrl plus arrow rotates as much as possible
+
+    Upon win, extend the target area so that it becomes the whole play area
+
+    When cutting, if two points are too close to each other, merge them
 
 
 

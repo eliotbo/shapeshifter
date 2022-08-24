@@ -3,9 +3,10 @@
 mod cam;
 pub mod cut;
 pub mod input;
-mod io;
+mod load;
 pub mod material;
 mod poly;
+mod save;
 pub mod target;
 pub mod util;
 pub mod view;
@@ -14,9 +15,10 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use cam::*;
 use cut::*;
 use input::*;
-use io::*;
+use load::*;
 use material::*;
 use poly::*;
+use save::*;
 use target::*;
 use util::*;
 use view::*;
@@ -25,7 +27,6 @@ use view::*;
 
 // use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_obj::*;
-use lyon::tessellation::math::Point;
 
 fn main() {
     App::new()
@@ -43,9 +44,8 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_event::<StartMakingSegment>()
         .add_event::<Action>()
-        .add_event::<QuickLoad>()
+        // .add_event::<QuickLoad>()
         .add_event::<Load>()
-        .add_event::<SaveMeshEvent>()
         .add_event::<TestCollisionEvent>()
         .add_event::<TestWinEvent>()
         .insert_resource(Globals::default())
@@ -56,10 +56,12 @@ fn main() {
         .add_plugin(FillMesh2dPlugin)
         .add_plugin(TargetMesh2dPlugin)
         .add_plugin(CutMesh2dPlugin)
+        .add_plugin(LoadPlugin)
+        .add_plugin(SavePlugin)
         // .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(CutPlugin)
         .add_plugin(ObjPlugin)
-        .add_plugin(PolyPlugin)
+        .add_plugin(PolyMakerPlugin)
         .add_plugin(TargetPlugin)
         .add_startup_system(camera_setup)
         .add_startup_system(setup_mesh)
@@ -84,7 +86,7 @@ fn main() {
 pub fn setup_mesh(
     mut load_event_writer: EventWriter<Load>,
     mut action_event_writer: EventWriter<Action>,
-    mut quickload_event_writer: EventWriter<QuickLoad>,
+    // mut quickload_event_writer: EventWriter<QuickLoad>,
 ) {
     load_event_writer.send(Load("my_mesh2".to_string()));
     // quickload_event_writer.send(QuickLoad);
@@ -192,7 +194,7 @@ pub fn toggle_grid(
                 for y in -num_grid_pints..num_grid_pints {
                     commands
                         .spawn_bundle(MaterialMesh2dBundle {
-                            material: materials.add(Color::rgb(0.1, 0., 0.1).into()),
+                            material: materials.add(Color::rgb(0.5, 0.4, 0.5).into()),
                             mesh: mesh.clone(),
                             transform: Transform::from_translation(Vec3::new(
                                 x as f32 * globals.grid_size,

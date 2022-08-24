@@ -4,8 +4,9 @@ use bevy::{
 };
 
 use crate::cut::*;
-use crate::io::{QuickLoad, SaveMeshEvent};
+// use crate::load::QuickLoad;
 use crate::poly::{MakingPolygon, MakingSegment};
+// use crate::save::SaveMeshEvent;
 use crate::util::Globals;
 // use crate::util::Globals;
 
@@ -30,6 +31,11 @@ pub enum Action {
     MaybeTranslatePoly,
     MaybeRotatePoly,
     RevertToInit,
+    SaveOneDialog,
+    LoadDialog,
+    QuickLoad,
+    QuickSave,
+    LoadTarget,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -118,7 +124,7 @@ pub fn direct_action(
     keyboard_input: Res<Input<KeyCode>>,
     mouse_button_input: Res<Input<MouseButton>>,
     mut mouse_wheel_events: EventReader<MouseWheel>,
-    mut quickload_event_writer: EventWriter<QuickLoad>,
+    // mut quickload_event_writer: EventWriter<QuickLoad>,
 
     // mut start_polygon: EventWriter<StartMakingPolygon>,
     // mut start_segment: EventWriter<EndSegment>,
@@ -126,10 +132,10 @@ pub fn direct_action(
     // mut end_polygon: EventWriter<EndMakingPolygon>,
     // mut delete_event: EventWriter<DeleteEvent>,
     mut action_event: EventWriter<Action>,
-    mut quicksave_event_writer: EventWriter<SaveMeshEvent>,
+    // mut quicksave_event_writer: EventWriter<SaveMeshEvent>,
     // mut end_cut_segment: EventWriter<EndCutSegment>,
     cursor: Res<Cursor>,
-    mut globals: ResMut<Globals>,
+    globals: ResMut<Globals>,
 ) {
     // let mouse_pressed = mouse_button_input.pressed(MouseButton::Left);
 
@@ -232,9 +238,13 @@ pub fn direct_action(
             });
         }
 
-        (false, true, false) if pressed_s => quicksave_event_writer.send(SaveMeshEvent),
-        (false, true, false) if pressed_l => quickload_event_writer.send(QuickLoad),
+        (false, true, false) if pressed_s => action_event.send(Action::QuickSave),
+        (false, true, false) if pressed_l => action_event.send(Action::QuickLoad),
         (false, true, false) if pressed_t => action_event.send(Action::QuickLoadTarget),
+
+        (true, true, false) if pressed_s => action_event.send(Action::SaveOneDialog),
+        (true, true, false) if pressed_l => action_event.send(Action::LoadDialog),
+        (true, true, false) if pressed_t => action_event.send(Action::LoadTarget),
 
         //
         //
