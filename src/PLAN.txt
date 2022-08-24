@@ -2,12 +2,12 @@ PLAN
 
 TODO:
 
-002) save/load mesh with popup window
+
 
 
 00) make crate!
 
-1) add possibility to move points
+
 2) make tutorial section (Simplicity)
 3) make Convexity section 
 4) make lots of animal polygons 
