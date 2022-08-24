@@ -158,6 +158,7 @@ pub fn transform_poly(
         for (entity, _, _) in queries.p1().iter_mut() {
             commands.entity(entity).remove::<Translating>();
             collision_test_writer.send(TestCollisionEvent(entity));
+            info!("sending collision after translating");
         }
     }
 

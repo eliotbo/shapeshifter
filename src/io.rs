@@ -194,9 +194,9 @@ pub fn quick_load_mesh(
             //
             //
             // spawn the polygon
-            let entity = commands
+            let _entity = commands
                 .spawn_bundle(MaterialMesh2dBundle {
-                    mesh: Mesh2dHandle(mesh_handle),
+                    mesh: Mesh2dHandle(mesh_handle.clone()),
                     material: mat_handle,
                     transform,
                     ..default()
@@ -208,6 +208,25 @@ pub fn quick_load_mesh(
                     points: loaded_mesh_params.points, //TODO
                     previous_transform: transform,
                 })
+                .id();
+
+            let ghost_mat_handle = fill_materials.add(FillMesh2dMaterial {
+                color: globals.ghost_color.into(),
+                show_com: 0.0,
+                selected: 0.0,
+            });
+
+            let mut ghost_transform = transform;
+            ghost_transform.translation.z = -10.0;
+
+            let _ghost_entity = commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: Mesh2dHandle(mesh_handle),
+                    material: ghost_mat_handle,
+                    transform: ghost_transform,
+                    ..default()
+                })
+                .insert(Ghost)
                 .id();
         }
     }

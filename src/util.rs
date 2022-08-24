@@ -20,6 +20,7 @@ pub struct Globals {
     pub snap_to_grid: bool,
     pub grid_size: f32,
     pub target_size_multiplier: f32,
+    pub ghost_color: Color,
 }
 
 impl Default for Globals {
@@ -30,7 +31,8 @@ impl Default for Globals {
             cutting_segment_thickness: 2.0,
             cutting_segment_color: Color::ORANGE,
             target_color: Color::DARK_GREEN,
-            min_turn_angle: core::f32::consts::PI / 25.0,
+            ghost_color: Color::rgba(0.02, 0.01, 0.21, 1.0),
+            min_turn_angle: core::f32::consts::PI / 20.0,
             cut_polygon: Color::TEAL,
             min_velocity: 0.5,
             friction: 50.0,
@@ -55,10 +57,16 @@ pub struct EntityZ {
 }
 
 #[derive(Component)]
+pub struct Hovered;
+
+#[derive(Component)]
 pub struct Grid;
 
 #[derive(Component)]
 pub struct Selected;
+
+#[derive(Component)]
+pub struct Ghost;
 
 #[derive(Component)]
 pub struct Rotating {

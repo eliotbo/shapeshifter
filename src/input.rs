@@ -6,10 +6,12 @@ use bevy::{
 use crate::cut::*;
 use crate::io::{QuickLoad, SaveMeshEvent};
 use crate::poly::{MakingPolygon, MakingSegment};
+use crate::util::Globals;
 // use crate::util::Globals;
 
 use lyon::tessellation::math::Point;
 
+#[derive(Debug)]
 pub enum Action {
     StartMakingPolygon { pos: Point },
     EndMakingPolygon,
@@ -25,6 +27,9 @@ pub enum Action {
     DeleteAll,
     ToggleGrid,
     QuickLoadTarget,
+    MaybeTranslatePoly,
+    MaybeRotatePoly,
+    RevertToInit,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -71,8 +76,6 @@ pub fn record_mouse_events_system(
     mut cursor_res: ResMut<Cursor>,
     mut windows: ResMut<Windows>,
     cam_transform_query: Query<&Transform, With<OrthographicProjection>>,
-    // cam_ortho_query: Query<&OrthographicProjection>,
-    // globals: Res<Globals>,
 ) {
     for event in cursor_moved_events.iter() {
         let cursor_in_pixels = event.position; // lower left is origin
@@ -87,10 +90,6 @@ pub fn record_mouse_events_system(
 
         // this variable currently has no effect
         let scale = 1.0;
-
-        // for ortho in cam_ortho_query.iter() {
-        //     scale = ortho.scale;
-        // }
 
         let cursor_vec4: Vec4 = cam_transform.compute_matrix()
             * screen_position.extend(0.0).extend(1.0 / (scale))
@@ -111,7 +110,7 @@ pub fn record_mouse_events_system(
     }
 }
 
-pub fn direct_make_polygon_action(
+pub fn direct_action(
     mut commands: Commands,
     // mut action_event_writer: EventWriter<Action>,
     making_poly_query: Query<&MakingPolygon>,
@@ -130,7 +129,7 @@ pub fn direct_make_polygon_action(
     mut quicksave_event_writer: EventWriter<SaveMeshEvent>,
     // mut end_cut_segment: EventWriter<EndCutSegment>,
     cursor: Res<Cursor>,
-    // mut globals: ResMut<Globals>,
+    mut globals: ResMut<Globals>,
 ) {
     // let mouse_pressed = mouse_button_input.pressed(MouseButton::Left);
 
@@ -149,6 +148,11 @@ pub fn direct_make_polygon_action(
         }
     }
 
+    let mut pos = cursor.position;
+    if globals.snap_to_grid {
+        pos = (pos.clone() / globals.grid_size).round() * globals.grid_size;
+    }
+
     let making_cut = making_cut_query.iter().next().is_some();
     let making_poly = making_poly_query.iter().next().is_some();
 
@@ -163,6 +167,7 @@ pub fn direct_make_polygon_action(
     let pressed_enter = keyboard_input.just_pressed(KeyCode::Return);
     let pressed_escape = keyboard_input.just_pressed(KeyCode::Escape);
     let pressed_space = keyboard_input.just_pressed(KeyCode::Space);
+    let pressed_back = keyboard_input.just_pressed(KeyCode::Back);
 
     // match keys / mouse buttons / mouse wheel combination and send event to corresponding action
     match (
@@ -173,16 +178,53 @@ pub fn direct_make_polygon_action(
         //
         //
         //
-        ////////////// if currently making either a polygon or a cut segment  /////////////////////////////
+        //
+        //
+        // cut on mouse release
+        (_, _, _) if mouse_just_released && making_cut => {
+            action_event.send(Action::EndCutSegment { end: pos });
+        }
+        //
+        //
+        // revert to initial state
+        (_, _, _) if pressed_back => {
+            action_event.send(Action::RevertToInit);
+        }
+
+        // Start a cut
+        // cannot start a cut segment if one is already being made
+        (false, true, false) if mouse_just_pressed && making_cut_query.iter().count() == 0 => {
+            action_event.send(Action::StartMakingCutSegment { start: pos });
+        }
+
+        (_, _, _) if pressed_g => action_event.send(Action::ToggleGrid),
+
+        (false, false, false) if mouse_wheel_up => {
+            action_event.send(Action::RotateAt { pos: pos, dir: 1.0 })
+        }
+        (false, false, false) if mouse_wheel_down => action_event.send(Action::RotateAt {
+            pos: pos,
+            dir: -1.0,
+        }),
+
         //
         //
         //
+
+        //
+        //
+        //
+        ///////////////////////////////// start of Part of level making  /////////////////////////////
+        //
+        //
+        // ends the current polygon being made
         (false, false, _)
             if (pressed_enter || mouse_right_just_pressed || pressed_space) && making_poly =>
         {
             action_event.send(Action::EndMakingPolygon);
         }
-
+        //
+        //
         // a click ends the current segment
         (false, false, false) if mouse_just_pressed && making_poly => {
             action_event.send(Action::EndSegment {
@@ -190,26 +232,12 @@ pub fn direct_make_polygon_action(
             });
         }
 
-        // cut on mouse release
-        (_, _, _) if mouse_just_released && making_cut => {
-            action_event.send(Action::EndCutSegment {
-                end: cursor.position,
-            });
-        }
-        //
-        //
-        //
-        ////////////// if currently making either a polygon or a cut segment  /////////////////////////////
-        //
-        //
-        //
-        //
-        //
-        //
-        //
         (false, true, false) if pressed_s => quicksave_event_writer.send(SaveMeshEvent),
         (false, true, false) if pressed_l => quickload_event_writer.send(QuickLoad),
         (false, true, false) if pressed_t => action_event.send(Action::QuickLoadTarget),
+
+        //
+        //
         //
         (false, false, false) if pressed_escape && making_cut => {
             // delete cut segment
@@ -217,15 +245,9 @@ pub fn direct_make_polygon_action(
             commands.entity(entity).despawn();
         }
 
-        (false, false, false) if mouse_wheel_up => action_event.send(Action::RotateAt {
-            pos: cursor.position,
-            dir: 1.0,
-        }),
-        (false, false, false) if mouse_wheel_down => action_event.send(Action::RotateAt {
-            pos: cursor.position,
-            dir: -1.0,
-        }),
-
+        //
+        //
+        //
         (false, false, false) if making_poly && (pressed_delete || pressed_escape) => {
             action_event.send(Action::DeleteMakingPoly);
         }
@@ -237,24 +259,15 @@ pub fn direct_make_polygon_action(
             })
         }
 
-        // cannot start a cut segment if one is already being made
-        (false, true, false) if mouse_just_pressed && making_cut_query.iter().count() == 0 => {
-            action_event.send(Action::StartMakingCutSegment {
-                start: cursor.position,
-            });
-        }
-
         // add point
         (true, false, false) if mouse_right_just_pressed && !making_poly && !making_cut => {
-            action_event.send(Action::AddPointAt {
-                pos: cursor.position,
-            });
+            action_event.send(Action::AddPointAt { pos: pos });
         }
 
-        (ctrl, shift, false) if mouse_just_pressed && !making_poly && !making_cut => {
+        (true, true, space) if mouse_just_pressed && !making_poly && !making_cut => {
             action_event.send(Action::SelectPoly {
-                pos: cursor.position,
-                keep_selected: (ctrl && shift),
+                pos: pos,
+                keep_selected: space,
             });
         }
 
@@ -262,8 +275,32 @@ pub fn direct_make_polygon_action(
 
         (_, _, _) if pressed_delete => action_event.send(Action::DeleteSelected),
 
-        (_, _, _) if pressed_g => action_event.send(Action::ToggleGrid),
+        (false, false, true) if pressed_space => action_event.send(Action::RotateAt {
+            pos,
+            dir: -10.0, // use dir to multiply the rotation angle
+        }),
 
+        ///////////////////////////////// end of Part of level making  /////////////////////////////
+
+        //
+        //
+        // low_priority (but still important)
+        //
+        //
+        //
+        // translation
+        (false, false, false) if mouse_just_pressed => {
+            info!("translation");
+            action_event.send(Action::MaybeTranslatePoly)
+        }
+        //
+        //
+        //
+        // rotation
+        (false, false, false) if mouse_right_just_pressed => {
+            info!("rotation");
+            action_event.send(Action::MaybeRotatePoly)
+        }
         _ => {}
     }
 }

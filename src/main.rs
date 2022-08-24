@@ -25,6 +25,7 @@ use view::*;
 
 // use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_obj::*;
+use lyon::tessellation::math::Point;
 
 fn main() {
     App::new()
@@ -39,6 +40,7 @@ fn main() {
         // .add_plugin(LogDiagnosticsPlugin::default())
         // .add_plugin(FrameTimeDiagnosticsPlugin::default())
         //
+        .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_event::<StartMakingSegment>()
         .add_event::<Action>()
         .add_event::<QuickLoad>()
@@ -63,29 +65,53 @@ fn main() {
         .add_startup_system(setup_mesh)
         .add_system(record_mouse_events_system.exclusive_system().at_start())
         .add_system(quick_load_target)
-        .add_system(direct_make_polygon_action)
+        .add_system(direct_action)
         .add_system(quick_load_mesh)
         .add_system(quick_save)
         .add_system(glow_poly)
         .add_system(rotate_once)
-        .add_system(select_poly)
         .add_system(delete_poly)
-        .add_system(delete_all)
         .add_system(toggle_grid)
         .add_system(test_collisions)
+        .add_system(revert_to_init)
+        //
+        // delete me please
+        .add_system(debug_input)
         .add_system(transform_poly.exclusive_system().at_end())
         .run();
 }
 
 pub fn setup_mesh(
     mut load_event_writer: EventWriter<Load>,
-    mut action_event_reader: EventWriter<Action>,
+    mut action_event_writer: EventWriter<Action>,
+    mut quickload_event_writer: EventWriter<QuickLoad>,
 ) {
-    load_event_writer.send(Load("my_mesh3".to_string()));
-    action_event_reader.send(Action::QuickLoadTarget);
+    load_event_writer.send(Load("my_mesh2".to_string()));
+    // quickload_event_writer.send(QuickLoad);
+    action_event_writer.send(Action::QuickLoadTarget);
 }
 
 use bevy_easings::*;
+
+pub fn debug_input(mut action_event_reader: EventReader<Action>) {
+    for action in action_event_reader.iter() {
+        info!("{:?}", action)
+    }
+}
+
+pub fn revert_to_init(
+    mut commands: Commands,
+    query: Query<Entity, Or<(With<Polygon>, With<CutSegment>)>>,
+    mut action_event_reader: EventReader<Action>,
+    mut load_event_writer: EventWriter<Load>,
+) {
+    if let Some(Action::RevertToInit) = action_event_reader.iter().next() {
+        for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        load_event_writer.send(Load("my_mesh2".to_string()));
+    }
+}
 
 pub fn test_collisions(
     mut commands: Commands,
@@ -113,15 +139,17 @@ pub fn test_collisions(
             }
         }
 
-        let target = target_query.single();
-        if meta1.precise_intersect_test(&target.path, &transform1, &Transform::identity()) {
-            // println!("target collision");
-            do_go_back_to_previous_pos = true;
+        if let Some(target) = target_query.iter().next() {
+            if meta1.precise_intersect_test(&target.path, &transform1, &Transform::identity()) {
+                // println!("target collision");
+                do_go_back_to_previous_pos = true;
+            }
         }
 
         let (transform1, mut meta1) = query.get_mut(*entity).unwrap();
 
         if do_go_back_to_previous_pos {
+            info!("inserting easing");
             commands.entity(*entity).insert(transform1.ease_to(
                 meta1.previous_transform,
                 bevy_easings::EaseFunction::BounceOut,
@@ -132,60 +160,6 @@ pub fn test_collisions(
         } else {
             meta1.previous_transform = transform1.clone();
             check_win_condition_event.send(TestWinEvent);
-        }
-    }
-}
-
-use lyon::tessellation::math::Point;
-
-pub fn delete_all(
-    mut commands: Commands,
-    query: Query<Entity, Or<(With<Polygon>, With<CutSegment>)>>,
-    mut action_event_reader: EventReader<Action>,
-) {
-    if let Some(Action::DeleteAll) = action_event_reader.iter().next() {
-        for entity in query.iter() {
-            commands.entity(entity).despawn_recursive();
-        }
-    }
-}
-
-pub fn select_poly(
-    mut commands: Commands,
-    mut fill_mesh_materials: ResMut<Assets<FillMesh2dMaterial>>,
-    mut query: Query<(Entity, &MeshMeta, &Transform, &Handle<FillMesh2dMaterial>), With<Polygon>>,
-    mut action_event_reader: EventReader<Action>,
-) {
-    if let Some(Action::SelectPoly { pos, keep_selected }) = action_event_reader.iter().next() {
-        if !keep_selected {
-            for (entity, _, _, mat_handle) in query.iter_mut() {
-                commands.entity(entity).remove::<Selected>();
-                let mat = fill_mesh_materials.get_mut(mat_handle).unwrap();
-                mat.selected = 0.0;
-            }
-        }
-
-        for (entity, mesh_meta, transform, mat_handle) in query.iter_mut() {
-            //
-            let mat = fill_mesh_materials.get_mut(mat_handle).unwrap();
-
-            if mesh_meta.hit_test(&Point::new(pos.x, pos.y), &transform).0 {
-                commands.entity(entity).insert(Selected);
-                mat.selected = 1.0;
-                break;
-            }
-        }
-    }
-}
-
-pub fn delete_poly(
-    mut commands: Commands,
-    query: Query<Entity, With<Selected>>,
-    mut action_event_reader: EventReader<Action>,
-) {
-    if let Some(Action::DeleteSelected) = action_event_reader.iter().next() {
-        for entity in query.iter() {
-            commands.entity(entity).despawn_recursive();
         }
     }
 }

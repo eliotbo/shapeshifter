@@ -1,7 +1,27 @@
 PLAN
 
 TODO:
-1) Add points to poly for level-making
+000) make polygon maker plugin (easily removable from final game)
+001) add grid to cursor
+002) save/load mesh with popup window
+003) rotate by 180 + rotate min angle should be a factor of 90 degrees
+
+00) make crate!
+
+1) add possibility to move points
+2) make tutorial section (Simplicity)
+3) make Convexity section 
+4) make lots of animal polygons 
+5) match pairs of animal polygons and try to map them to each other
+
+
+VIEW TODO:
+    1) rounded edges 
+    2) make visuals bigger than model by epsilon (leeway for collisions)
+    3) remove the pull back to previous position when colliding with target 
+        should just play sound and bounce horizontally quickly
+    4) Wood texture for polygons
+
 
 
 

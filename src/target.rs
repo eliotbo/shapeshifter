@@ -121,27 +121,28 @@ pub fn check_win_condition(
         //
         //
         //
-        let target = target_query.single();
-        let mut has_won = true;
-        for (transform, meta) in query.iter() {
-            //
-            //
-            //
-            // At this point, we know that the polygon segments are not intersecting with
-            // the target's segments, because this test was passed before sending TestWinEvent
-            // from test_collisions(..)
-            let (transformed_path, _) = transform_path(&meta.path, transform);
-            for seg in transformed_path.iter() {
-                let pos: Point = seg.from();
+        if let Some(target) = target_query.iter().next() {
+            let mut has_won = true;
+            for (transform, meta) in query.iter() {
+                //
+                //
+                //
+                // At this point, we know that the polygon segments are not intersecting with
+                // the target's segments, because this test was passed before sending TestWinEvent
+                // from test_collisions(..)
+                let (transformed_path, _) = transform_path(&meta.path, transform);
+                for seg in transformed_path.iter() {
+                    let pos: Point = seg.from();
 
-                if !hit_test_path(&pos, target.path.iter(), FillRule::EvenOdd, 0.1) {
-                    println!("outside of target");
-                    has_won = false;
+                    if !hit_test_path(&pos, target.path.iter(), FillRule::EvenOdd, 0.1) {
+                        println!("outside of target");
+                        has_won = false;
+                    }
                 }
             }
-        }
-        if has_won {
-            println!("You won!");
+            if has_won {
+                println!("You won!");
+            }
         }
     }
 }
