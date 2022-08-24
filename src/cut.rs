@@ -168,11 +168,11 @@ pub fn end_cut_segment(
 
 pub fn move_after_cut(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut Transform, &mut ForceMotion)>,
+    mut query: Query<(Entity, &mut Transform, &mut ForceMotion, &mut MeshMeta)>,
     globals: Res<Globals>,
     time: Res<Time>,
 ) {
-    for (entity, mut transform, mut animation) in query.iter_mut() {
+    for (entity, mut transform, mut animation, mut mesh_meta) in query.iter_mut() {
         //
         // compute new velocity
         animation.velocity = animation.velocity
@@ -183,6 +183,8 @@ pub fn move_after_cut(
         animation.position = animation.position + animation.velocity * time.delta_seconds();
 
         transform.translation = animation.position.extend(transform.translation.z);
+
+        mesh_meta.previous_transform = transform.clone();
 
         // *transform =
 
@@ -202,7 +204,6 @@ pub fn perform_cut(
         (Entity, &Handle<FillMesh2dMaterial>, &Transform, &MeshMeta),
         With<Polygon>,
     >,
-    mut poly_order: ResMut<PolyOrder>,
 ) {
     for (cut_entity, cut) in cut_query.iter() {
         let mut do_remove_cut_entity = true;
@@ -401,7 +402,7 @@ pub fn perform_cut(
                     break;
                 }
 
-                let (mesh, center_of_mass) = make_polygon_mesh(&built_path, &Color::TEAL);
+                let (mesh, center_of_mass) = make_polygon_mesh(&built_path, true);
 
                 // Useless at the moment, but here for future use
                 let mat_handle = fill_materials.add(FillMesh2dMaterial {
@@ -458,7 +459,6 @@ pub fn perform_cut(
                     })
                     .id();
 
-                poly_order.add(new_entity, fill_transform.translation.z);
                 new_entities.push(new_entity);
 
                 //
@@ -486,11 +486,6 @@ pub fn perform_cut(
                 // remove all newly created polygons
                 for entity in new_entities.iter() {
                     commands.entity(*entity).despawn();
-                }
-
-                // remove all new entities in poly_order
-                for entity in new_entities.iter() {
-                    poly_order.remove(*entity);
                 }
             }
         }

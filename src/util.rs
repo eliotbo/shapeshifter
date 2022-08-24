@@ -12,12 +12,14 @@ pub struct Globals {
     pub polygon_color: Color,
     pub cutting_segment_thickness: f32,
     pub cutting_segment_color: Color,
+    pub target_color: Color,
     pub min_turn_angle: f32,
     pub cut_polygon: Color,
     pub min_velocity: f32,
     pub friction: f32,
     pub snap_to_grid: bool,
     pub grid_size: f32,
+    pub target_size_multiplier: f32,
 }
 
 impl Default for Globals {
@@ -27,12 +29,14 @@ impl Default for Globals {
             polygon_color: Color::PURPLE,
             cutting_segment_thickness: 2.0,
             cutting_segment_color: Color::ORANGE,
+            target_color: Color::DARK_GREEN,
             min_turn_angle: core::f32::consts::PI / 25.0,
             cut_polygon: Color::TEAL,
             min_velocity: 0.5,
             friction: 50.0,
             snap_to_grid: false,
             grid_size: 20.0,
+            target_size_multiplier: 1.2,
         }
     }
 }
@@ -48,33 +52,6 @@ pub struct ForceMotion {
 pub struct EntityZ {
     pub entity: Entity,
     pub z: f32,
-}
-
-// keeps track of the z position of the polygons
-pub struct PolyOrder {
-    pub entities: Vec<EntityZ>,
-}
-
-impl Default for PolyOrder {
-    fn default() -> Self {
-        PolyOrder { entities: vec![] }
-    }
-}
-
-impl PolyOrder {
-    pub fn add(&mut self, entity: Entity, z: f32) {
-        self.entities.push(EntityZ { entity, z });
-        self.sort();
-    }
-
-    pub fn remove(&mut self, entity: Entity) {
-        self.entities.retain(|e| e.entity != entity);
-    }
-
-    pub fn sort(&mut self) {
-        // sort by z
-        self.entities.sort_by(|a, b| a.z.partial_cmp(&b.z).unwrap());
-    }
 }
 
 #[derive(Component)]
@@ -93,13 +70,15 @@ pub struct Translating {
     pub starting_pos: Vec2,
 }
 
+pub struct TestWinEvent;
+
 pub struct DeleteEvent;
 
 pub struct TestCollisionEvent(pub Entity);
 
 pub type MeshId = u64;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct MeshMeta {
     pub id: MeshId,
     pub path: Path,

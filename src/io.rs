@@ -3,8 +3,10 @@ use bevy::{
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
 };
 
+use crate::input::Action;
 use crate::material::FillMesh2dMaterial;
 use crate::poly::Polygon;
+use crate::target::*;
 use crate::util::*;
 
 // use std::fs::create_dir;
@@ -22,6 +24,43 @@ use lyon::tessellation::path::{builder::NoAttributes, path::BuilderImpl, Path};
 pub struct QuickLoad;
 pub struct Load(pub String);
 
+pub struct SaveLoadPlugin;
+
+impl Plugin for SaveLoadPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_system(quick_load_mesh)
+            .add_system(quick_save)
+            .add_system(quick_load_target);
+    }
+}
+
+pub fn quick_load_target(
+    // mut commands: Commands,
+    // asset_server: Res<AssetServer>,
+    // mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
+    // mut quickload_event_reader: EventReader<QuickLoad>,
+    // mut load_event_reader: EventReader<Load>,
+    // globals: Res<Globals>,
+    // mut poly_order: ResMut<PolyOrder>,
+    mut loaded_target_event: EventWriter<LoadedTarget>,
+    mut action_event_reader: EventReader<Action>,
+) {
+    //
+    //
+    if let Some(Action::QuickLoadTarget) = action_event_reader.iter().next() {
+        let mut save_path = std::env::current_dir().unwrap();
+        save_path.push("assets/meshes/my_target.points".to_owned());
+
+        let mut file = std::fs::File::open(save_path).unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).unwrap();
+        let loaded_mesh_params: SaveMeshMeta = serde_json::from_str(&contents).unwrap();
+        loaded_target_event.send(LoadedTarget {
+            save_mesh_meta: loaded_mesh_params,
+        });
+    }
+}
+
 // either loads the "assets/meshes/my_mesh0" folder with the QuickLoad event
 // or loads the "assets/meshes/<name>" folder with the Load event.
 //
@@ -35,7 +74,6 @@ pub fn quick_load_mesh(
     mut quickload_event_reader: EventReader<QuickLoad>,
     mut load_event_reader: EventReader<Load>,
     globals: Res<Globals>,
-    mut poly_order: ResMut<PolyOrder>,
 ) {
     let mut load_names = Vec::new();
     let mut save_prepath = std::env::current_dir().unwrap();
@@ -98,12 +136,14 @@ pub fn quick_load_mesh(
             //
             //
             // load the mesh with an .obj loader (the bevy_obj crate)
+            //
             let mesh_handle: Handle<Mesh> = asset_server.load(save_path.to_str().unwrap());
 
             //
             //
             //
             // get mesh meta info using the .points extension
+            //
             let saved_mesh_data = save_path.with_extension("points");
             let mut file = std::fs::File::open(saved_mesh_data).unwrap();
             let mut contents = String::new();
@@ -126,6 +166,7 @@ pub fn quick_load_mesh(
             //
             //
             // build the polygon
+            //
             let mut path: NoAttributes<BuilderImpl> = Path::builder();
 
             for (idx, pos) in loaded_mesh_params.points.iter().enumerate() {
@@ -145,43 +186,9 @@ pub fn quick_load_mesh(
             let id = rng.gen::<u64>();
             let z = rng.gen::<f32>();
 
-            use bevy_easings::*;
             let mut transform =
                 Transform::from_translation(loaded_mesh_params.translation.extend(z));
             transform.rotate_axis(Vec3::Z, loaded_mesh_params.rotation);
-
-            // let t2 = transform.clone();
-            // t2.ease_to(
-            //     Transform::from_translation(Vec3::new(100., 400., z)),
-            //     bevy_easings::EaseFunction::QuadraticInOut,
-            //     bevy_easings::EasingType::Once {
-            //         duration: std::time::Duration::from_secs_f32(2.0),
-            //         // pause: None,
-            //     },
-            // )
-            // .ease_to(
-            //     Transform::from_scale(Vec3::new(0.5, 0.5, 1.0)),
-            //     bevy_easings::EaseFunction::QuadraticInOut,
-            //     bevy_easings::EasingType::Once {
-            //         duration: std::time::Duration::from_millis(500),
-            //     },
-            // );
-
-            // let t2 = Transform::from_translation(Vec3::new(100., 400., z))
-            //     .ease_to(
-            //         Transform::from_scale(Vec3::splat(2.0)),
-            //         bevy_easings::EaseFunction::QuadraticInOut,
-            //         bevy_easings::EasingType::Once {
-            //             duration: std::time::Duration::from_millis(500),
-            //         },
-            //     )
-            //     .ease_to(
-            //         Transform::from_scale(Vec3::ONE),
-            //         bevy_easings::EaseFunction::QuadraticInOut,
-            //         bevy_easings::EasingType::Once {
-            //             duration: std::time::Duration::from_millis(500),
-            //         },
-            //     );
 
             //
             //
@@ -201,114 +208,10 @@ pub fn quick_load_mesh(
                     points: loaded_mesh_params.points, //TODO
                     previous_transform: transform,
                 })
-                // .insert(t2)
-                // .insert(
-                // Transform::from_scale(Vec3::ZERO)
-                //     .ease_to(
-                //         Transform::from_scale(Vec3::splat(2.0)),
-                //         bevy_easings::EaseFunction::QuadraticInOut,
-                //         bevy_easings::EasingType::Once {
-                //             duration: std::time::Duration::from_millis(500),
-                //         },
-                //     )
-                //     .ease_to(
-                //         Transform::from_scale(Vec3::ONE),
-                //         bevy_easings::EaseFunction::QuadraticInOut,
-                //         bevy_easings::EasingType::Once {
-                //             duration: std::time::Duration::from_millis(500),
-                //         },
-                //     ),
-                // )
                 .id();
-
-            poly_order.add(entity, z);
         }
     }
 }
-
-// pub fn quick_load_mesh(
-//     mut commands: Commands,
-//     asset_server: Res<AssetServer>,
-//     mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
-//     mut quickload_event_reader: EventReader<QuickLoad>,
-//     mut load_event_reader: EventReader<Load>,
-//     globals: Res<Globals>,
-//     mut poly_order: ResMut<PolyOrder>,
-// ) {
-//     let mut load_names = Vec::new();
-
-//     for _ in quickload_event_reader.iter() {
-//         load_names.push("my_mesh0".to_string());
-//     }
-
-//     for load in load_event_reader.iter() {
-//         load_names.push(load.0.clone());
-//     }
-
-//     for name in load_names {
-//         info!("quick loading mesh");
-
-//         let filename = "assets/meshes/".to_owned() + &name + ".obj";
-
-//         let mut save_path = std::env::current_dir().unwrap();
-//         save_path.push(filename);
-
-//         // load the mesh
-//         let mesh_handle: Handle<Mesh> = asset_server.load(save_path.to_str().unwrap());
-
-//         // get mesh info using the .points extension
-//         let saved_mesh_data = save_path.with_extension("points");
-//         let mut file = std::fs::File::open(saved_mesh_data).unwrap();
-//         let mut contents = String::new();
-//         file.read_to_string(&mut contents).unwrap();
-//         let loaded_mesh_params: SaveMeshMeta = serde_json::from_str(&contents).unwrap();
-
-//         let mat_handle = fill_materials.add(FillMesh2dMaterial {
-//             color: globals.polygon_color.into(),
-//             show_com: 0.0,
-//             selected: 0.0,
-//         });
-
-//         let mut path: NoAttributes<BuilderImpl> = Path::builder();
-
-//         for (idx, pos) in loaded_mesh_params.points.iter().enumerate() {
-//             //
-//             if idx == 0 {
-//                 path.begin(Point::new(pos.x, pos.y));
-//             } else {
-//                 path.line_to(Point::new(pos.x, pos.y));
-//             };
-//         }
-
-//         path.close();
-
-//         let built_path: Path = path.clone().build();
-
-//         let mut rng = thread_rng();
-//         let id = rng.gen::<u64>();
-//         let z = rng.gen::<f32>();
-
-//         let mut transform = Transform::from_translation(loaded_mesh_params.translation.extend(z));
-//         transform.rotate_axis(Vec3::Z, loaded_mesh_params.rotation);
-
-//         let entity = commands
-//             .spawn_bundle(MaterialMesh2dBundle {
-//                 mesh: Mesh2dHandle(mesh_handle),
-//                 material: mat_handle,
-//                 transform,
-//                 ..default()
-//             })
-//             .insert(Polygon)
-//             .insert(MeshMeta {
-//                 id,
-//                 path: built_path.clone(),
-//                 points: loaded_mesh_params.points, //TODO
-//             })
-//             .id();
-
-//         poly_order.add(entity, z);
-//     }
-// }
 
 // pub fn open_file_dialog(save_name: &str, folder: &str, extension: &str) -> Option<PathBuf> {
 //     let mut k = 0;

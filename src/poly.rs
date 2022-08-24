@@ -26,6 +26,7 @@ impl Plugin for PolyPlugin {
             .add_system(start_polygon)
             .add_system(making_segment)
             .add_system(end_segment)
+            .add_system(add_point_to_poly)
             .add_system(start_poly_segment);
     }
 }
@@ -50,6 +51,125 @@ pub struct MakingPolygon {
     pub current_point: Point,
     pub starting_point: Point,
     pub all_points: Vec<Vec2>,
+}
+
+pub fn add_point_to_poly(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<TargetMesh2dMaterial>>,
+    globals: Res<Globals>,
+    mut query: Query<
+        (
+            Entity,
+            &mut MeshMeta,
+            &Transform,
+            &Handle<FillMesh2dMaterial>,
+        ),
+        With<Polygon>,
+    >,
+    mut action_event_reader: EventReader<Action>,
+) {
+    if let Some(Action::AddPointAt { pos }) = action_event_reader.iter().next() {
+        info!("add point at {:?}", pos);
+        //
+        //
+        //
+        if let Some((entity, mut mesh_meta, transform, mat_handle)) = query.iter_mut().next() {
+            //
+            //
+            //
+            // find closest path segment to the cursor pos
+            //
+            let mut min_distance = f32::MAX;
+            let mut closest_segment = 111111111111111111;
+
+            let (transformed_path, _angle) = transform_path(&mesh_meta.path, transform);
+
+            for (k, seg) in transformed_path.iter().enumerate() {
+                //
+                //
+                //
+
+                let segment: (Vec2, Vec2) = (
+                    Vec2::new(seg.from().x, seg.from().y),
+                    Vec2::new(seg.to().x, seg.to().y),
+                );
+
+                let dist = distance_from_point_to_segment(*pos, segment);
+                info!("distance from point to segment: {:?}", dist);
+
+                if dist < min_distance {
+                    info!("new min distance: {}", dist);
+                    min_distance = dist;
+                    closest_segment = k;
+                }
+            }
+
+            let mut builder = Path::builder();
+            let mut all_points = Vec::new();
+            for (k, seg) in transformed_path.iter().enumerate() {
+                if k == 0 {
+                    builder.begin(seg.from());
+                    all_points.push(Vec2::new(seg.from().x, seg.from().y));
+                } else {
+                    builder.line_to(seg.from());
+                    all_points.push(Vec2::new(seg.from().x, seg.from().y));
+                }
+
+                if k == closest_segment {
+                    //
+                    //
+                    //
+                    builder.line_to(Point::new(pos.x, pos.y));
+                    all_points.push(Vec2::new(pos.x, pos.y));
+                }
+            }
+            builder.close();
+
+            mesh_meta.path = builder.build();
+
+            let (mesh, center_of_mass) = make_polygon_mesh(&mesh_meta.path, false);
+
+            mesh_meta.points = all_points
+                .clone()
+                .iter()
+                .map(|x| *x - center_of_mass)
+                .collect();
+
+            let _new_poly_entity = commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: Mesh2dHandle(meshes.add(mesh)),
+                    material: mat_handle.clone(),
+                    transform: Transform::identity(),
+                    ..default()
+                })
+                .insert(Polygon)
+                .insert(mesh_meta.clone())
+                .id();
+
+            info!("new poly entity: {:?}", _new_poly_entity);
+            //
+            // remove old poly
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+// computes the distance from a point to a segment
+pub fn distance_from_point_to_segment(point: Vec2, segment: (Vec2, Vec2)) -> f32 {
+    let (start, end) = segment;
+    let l2 = (end - start).length_squared();
+    if l2 == 0.0 {
+        return (point - start).length();
+    }
+    let t = ((point - start).dot(end - start)) / l2;
+    if t < 0.0 {
+        return (point - start).length();
+    } else if t > 1.0 {
+        return (point - end).length();
+    }
+    let projection = start + t * (end - start);
+    (point - projection).length()
 }
 
 pub fn start_poly_segment(
@@ -286,7 +406,6 @@ pub fn end_polygon(
     mut action_event_reader: EventReader<Action>,
     mut polygon_query: Query<(Entity, &mut MakingPolygon)>,
     globals: Res<Globals>,
-    mut poly_order: ResMut<PolyOrder>,
 ) {
     //
     //
@@ -313,9 +432,8 @@ pub fn end_polygon(
             }
 
             // the path is shifted to the origin and the mesh transform is moved instead
-            let (mesh, center_of_mass) = make_polygon_mesh(&path, &globals.polygon_color);
+            let (mesh, center_of_mass) = make_polygon_mesh(&path, true);
 
-            // Useless at the moment, but here for future use
             let mat_handle = fill_materials.add(FillMesh2dMaterial {
                 color: globals.polygon_color.into(),
                 show_com: 0.0, // show center of mass
@@ -353,15 +471,16 @@ pub fn end_polygon(
                 })
                 .id();
 
-            poly_order.add(new_poly_entity, fill_transform.translation.z);
-
             // despawn the MakingPolygon invisible entity and the child segments
             commands.entity(entity).despawn_recursive();
         }
     }
 }
 
-pub fn make_polygon_mesh(path: &Path, color: &Color) -> (Mesh, Vec2) {
+// make a mesh from a path
+//
+// shift_com: shift the center of mass of path to origin.
+pub fn make_polygon_mesh(path: &Path, shift_com: bool) -> (Mesh, Vec2) {
     let mut buffers: VertexBuffers<Point, u16> = VertexBuffers::new();
 
     let mut vertex_builder = simple_builder(&mut buffers);
@@ -379,6 +498,7 @@ pub fn make_polygon_mesh(path: &Path, color: &Color) -> (Mesh, Vec2) {
 
     // show points from look-up table
 
+    let color = Color::WHITE;
     let mut colors = Vec::new();
 
     for position in buffers.vertices[..].iter() {
@@ -428,7 +548,7 @@ pub fn make_polygon_mesh(path: &Path, color: &Color) -> (Mesh, Vec2) {
     mesh_pos_attributes = mesh_pos_attributes
         .iter()
         .map(|x| {
-            let new_pos = Vec2::new(x[0], x[1]) - center_of_mass;
+            let new_pos = Vec2::new(x[0], x[1]) - center_of_mass * shift_com as i32 as f32;
             [new_pos.x, new_pos.y, 0.0]
         })
         .collect();

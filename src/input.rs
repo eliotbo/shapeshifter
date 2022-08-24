@@ -6,7 +6,7 @@ use bevy::{
 use crate::cut::*;
 use crate::io::{QuickLoad, SaveMeshEvent};
 use crate::poly::{MakingPolygon, MakingSegment};
-use crate::util::Globals;
+// use crate::util::Globals;
 
 use lyon::tessellation::math::Point;
 
@@ -18,11 +18,13 @@ pub enum Action {
     StartMakingCutSegment { start: Vec2 },
     EndCutSegment { end: Vec2 },
     RotateAt { pos: Vec2, dir: f32 },
+    AddPointAt { pos: Vec2 },
     DeleteMakingPoly,
     DeleteSelected,
     SelectPoly { pos: Vec2, keep_selected: bool },
     DeleteAll,
     ToggleGrid,
+    QuickLoadTarget,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -128,7 +130,7 @@ pub fn direct_make_polygon_action(
     mut quicksave_event_writer: EventWriter<SaveMeshEvent>,
     // mut end_cut_segment: EventWriter<EndCutSegment>,
     cursor: Res<Cursor>,
-    mut globals: ResMut<Globals>,
+    // mut globals: ResMut<Globals>,
 ) {
     // let mouse_pressed = mouse_button_input.pressed(MouseButton::Left);
 
@@ -156,7 +158,7 @@ pub fn direct_make_polygon_action(
     let pressed_s = keyboard_input.just_pressed(KeyCode::S);
     let pressed_l = keyboard_input.just_pressed(KeyCode::L);
     let _pressed_z = keyboard_input.just_pressed(KeyCode::Z);
-    let _pressed_t = keyboard_input.just_pressed(KeyCode::T);
+    let pressed_t = keyboard_input.just_pressed(KeyCode::T);
     let pressed_delete = keyboard_input.just_pressed(KeyCode::Delete);
     let pressed_enter = keyboard_input.just_pressed(KeyCode::Return);
     let pressed_escape = keyboard_input.just_pressed(KeyCode::Escape);
@@ -207,7 +209,8 @@ pub fn direct_make_polygon_action(
         //
         (false, true, false) if pressed_s => quicksave_event_writer.send(SaveMeshEvent),
         (false, true, false) if pressed_l => quickload_event_writer.send(QuickLoad),
-
+        (false, true, false) if pressed_t => action_event.send(Action::QuickLoadTarget),
+        //
         (false, false, false) if pressed_escape && making_cut => {
             // delete cut segment
             let (entity, _) = making_cut_query.single();
@@ -222,7 +225,6 @@ pub fn direct_make_polygon_action(
             pos: cursor.position,
             dir: -1.0,
         }),
-        (true, false, false) if _pressed_t => {}
 
         (false, false, false) if making_poly && (pressed_delete || pressed_escape) => {
             action_event.send(Action::DeleteMakingPoly);
@@ -239,6 +241,13 @@ pub fn direct_make_polygon_action(
         (false, true, false) if mouse_just_pressed && making_cut_query.iter().count() == 0 => {
             action_event.send(Action::StartMakingCutSegment {
                 start: cursor.position,
+            });
+        }
+
+        // add point
+        (true, false, false) if mouse_right_just_pressed && !making_poly && !making_cut => {
+            action_event.send(Action::AddPointAt {
+                pos: cursor.position,
             });
         }
 

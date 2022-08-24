@@ -50,3 +50,27 @@ impl Material2d for CutMesh2dMaterial {
         "shaders/cut.wgsl".into()
     }
 }
+
+//
+//
+//
+#[derive(AsBindGroup, TypeUuid, Debug, Clone, Component, Default)]
+#[uuid = "f690fdae-d512-fd79-9517-9678a3f95537"]
+pub struct TargetMesh2dMaterial {
+    #[uniform(0)]
+    pub color: Vec4,
+}
+
+pub struct TargetMesh2dPlugin;
+
+impl Plugin for TargetMesh2dPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugin(Material2dPlugin::<TargetMesh2dMaterial>::default());
+    }
+}
+
+impl Material2d for TargetMesh2dMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/target.wgsl".into()
+    }
+}

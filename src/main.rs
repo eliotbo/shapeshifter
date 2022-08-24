@@ -6,6 +6,7 @@ pub mod input;
 mod io;
 pub mod material;
 mod poly;
+pub mod target;
 pub mod util;
 pub mod view;
 
@@ -16,12 +17,13 @@ use input::*;
 use io::*;
 use material::*;
 use poly::*;
+use target::*;
 use util::*;
 use view::*;
 
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
-use bevy_inspector_egui::WorldInspectorPlugin;
+// use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_obj::*;
 
 fn main() {
@@ -43,21 +45,24 @@ fn main() {
         .add_event::<Load>()
         .add_event::<SaveMeshEvent>()
         .add_event::<TestCollisionEvent>()
+        .add_event::<TestWinEvent>()
         .insert_resource(Globals::default())
         .insert_resource(Cursor::default())
-        .insert_resource(PolyOrder::default())
         .add_plugin(bevy_easings::EasingsPlugin)
         .add_plugins(DefaultPlugins)
         .add_plugin(CamPlugin)
         .add_plugin(FillMesh2dPlugin)
+        .add_plugin(TargetMesh2dPlugin)
         .add_plugin(CutMesh2dPlugin)
         // .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(CutPlugin)
         .add_plugin(ObjPlugin)
         .add_plugin(PolyPlugin)
+        .add_plugin(TargetPlugin)
         .add_startup_system(camera_setup)
         .add_startup_system(setup_mesh)
         .add_system(record_mouse_events_system.exclusive_system().at_start())
+        .add_system(quick_load_target)
         .add_system(direct_make_polygon_action)
         .add_system(quick_load_mesh)
         .add_system(quick_save)
@@ -72,10 +77,12 @@ fn main() {
         .run();
 }
 
-pub fn setup_mesh(mut commands: Commands, mut load_event_writer: EventWriter<Load>) {
-    load_event_writer.send(Load("my_mesh0".to_string()));
-    // load_event_writer.send(Load("my_mesh6".to_string()));
-    // load_event_writer.send(Load("my_mesh8".to_string()));
+pub fn setup_mesh(
+    mut load_event_writer: EventWriter<Load>,
+    mut action_event_reader: EventWriter<Action>,
+) {
+    load_event_writer.send(Load("my_mesh3".to_string()));
+    action_event_reader.send(Action::QuickLoadTarget);
 }
 
 use bevy_easings::*;
@@ -83,7 +90,9 @@ use bevy_easings::*;
 pub fn test_collisions(
     mut commands: Commands,
     mut query: Query<(&Transform, &mut MeshMeta), With<Polygon>>,
+    target_query: Query<&Target>,
     mut collision_test_event: EventReader<TestCollisionEvent>,
+    mut check_win_condition_event: EventWriter<TestWinEvent>,
 ) {
     for TestCollisionEvent(entity) in collision_test_event.iter() {
         let mut do_go_back_to_previous_pos = false;
@@ -99,33 +108,30 @@ pub fn test_collisions(
             //
             if meta1.bounding_box_collide(&meta2.path, &transform1, &transform2) {
                 if meta1.precise_intersect_test(&meta2.path, &transform1, &transform2) {
-                    println!("collision");
                     do_go_back_to_previous_pos = true;
                 }
             }
         }
 
-        let (mut transform1, mut meta1) = query.get_mut(*entity).unwrap();
+        let target = target_query.single();
+        if meta1.precise_intersect_test(&target.path, &transform1, &Transform::identity()) {
+            // println!("target collision");
+            do_go_back_to_previous_pos = true;
+        }
+
+        let (transform1, mut meta1) = query.get_mut(*entity).unwrap();
 
         if do_go_back_to_previous_pos {
-            // let pre = meta1.previous_transform;
-
-            // let mut new_transform =
-            //     Transform::from_translation(meta.translation.extend(z));
-            // new_transform.rotate_axis(Vec3::Z, loaded_mesh_params.rotation);
-            info!("collision EASING");
-
-            let what = transform1.ease_to(
+            commands.entity(*entity).insert(transform1.ease_to(
                 meta1.previous_transform,
                 bevy_easings::EaseFunction::BounceOut,
                 bevy_easings::EasingType::Once {
                     duration: std::time::Duration::from_secs_f32(0.3),
                 },
-            );
-            // commands.entity(*entity).remove::<Transform>();
-            commands.entity(*entity).insert(what);
+            ));
         } else {
             meta1.previous_transform = transform1.clone();
+            check_win_condition_event.send(TestWinEvent);
         }
     }
 }

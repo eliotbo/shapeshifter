@@ -1,56 +1,59 @@
 PLAN
 
 TODO:
-1) make the shapeshifted area 
-2) make the take back animation when two shapes are overlapping
-    need previous transform in meta information
+1) Add points to poly for level-making
+
 
 
 
 GIT commands
 
-create new repo online from local repo
-    gh repo create
-    git push --set-upstream origin main
+    create new repo online from local repo
+        gh repo create
+        git push --set-upstream origin main
 
 
-IDEA
+IDEAs
 
 
+    Worlds in order of difficulty
+    0) Simplicity 
+    1) Convexity
+    2) Perplexity
+    3) Complexity
 
 
-Worlds in order of difficulty
-0) Simplicity 
-1) Convexity
-2) Perplexity
-3) Complexity
+    Write the section titles with low poly font
 
 
-Write the section titles with low poly font
+    Each section has its own theme
+    0) Wood
+    1) Metal
+    2) Stone 
+    3) Glass
 
+    Level:
+    look at origami
+    chocolate bar
 
-Each section has its own theme
-0) Wood
-1) Metal
-2) Stone 
-3) Glass
-
-Level:
-look at origami
-chocolate bar
 
 
 POLISHING
 
-Make a better rounded look: at every point, but a bezier curve to round off the edges
-----limit the area of a new polygon after a cut (cannot make a new polygon that is
-    too small)
+    Make a better rounded look: at every point, but a bezier curve to round off the edges
+    ----limit the area of a new polygon after a cut (cannot make a new polygon that is
+        too small)
 
-add shadows to the edges of the polygons
+    add shadows to the edges of the polygons
 
-make neuromorphic design for shapeshifted area. Send position of polygon points to gpu,
-and use a polygon SDF. Make Corners rounded.
-        Make shaders for each theme
+    make neuromorphic design for shapeshifted area. Send position of polygon points to gpu,
+    and use a polygon SDF. Make Corners rounded.
+            Make shaders for each theme.
+            Make contours for each theme.
 
 
 
+
+WASM
+
+    Remove inspector from wasm build
