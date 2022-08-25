@@ -2,9 +2,11 @@
 name = "shapeshifter_level_maker"
 version = "0.1.0"
 edition = "2021"
-
+# workspace = "~/Documents/rust/shapeshifter/crates/shapeshifter_level_maker"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
 
 [dependencies]
 bevy = "0.8"
@@ -17,6 +19,21 @@ bevy_obj = "0.8"
 serde_json = "1.0.59"
 bevy_easings = "0.8"
 rfd = "0.10"
+
+[[example]]
+name = "bah"
+path = "examples/bah.rs"
+
+[features]
+default = ["render", "sprite", "ui"]
+"render" = ["bevy/bevy_render"]
+"sprite" = ["bevy/bevy_sprite"]
+"ui" = ["bevy/bevy_ui"]
+"examples" = ["ui", "sprite", "render", "bevy/render", "bevy/bevy_winit", "bevy/x11", "bevy/bevy_asset"]
+
+[lib]
+name = "shapeshifter_level_maker"
+path = "src/lib.rs"
 
 # [[bin]]
 # name = "lib"

@@ -474,6 +474,15 @@ pub fn make_polygon_mesh(path: &Path, shift_com: bool) -> (Mesh, Vec2) {
     return (mesh, center_of_mass);
 }
 
+pub fn shift_to_center_of_mass(v: &Vec<Vec2>) -> Vec<Vec2> {
+    let mut center_of_mass = Vec2::ZERO;
+    for pos in v.iter() {
+        center_of_mass += *pos;
+    }
+    center_of_mass /= v.len() as f32;
+    return v.iter().map(|x| *x - center_of_mass).collect();
+}
+
 pub fn make_square() -> (Path, Vec<Vec2>) {
     let mut path = Path::builder();
     path.begin(point(0.0, 0.0));

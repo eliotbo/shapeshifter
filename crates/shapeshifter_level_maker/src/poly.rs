@@ -2,6 +2,7 @@ use crate::cut::CutSegment;
 use crate::input::Action;
 use crate::input::Cursor;
 use crate::material::*;
+
 use crate::util::*;
 
 use bevy::{
@@ -85,7 +86,15 @@ pub fn select_poly(
 
 pub fn delete_all(
     mut commands: Commands,
-    query: Query<Entity, Or<(With<Polygon>, With<CutSegment>)>>,
+    query: Query<
+        Entity,
+        Or<(
+            With<Polygon>,
+            With<CutSegment>,
+            With<Ghost>,
+            With<PathPoint>,
+        )>,
+    >,
     mut action_event_reader: EventReader<Action>,
 ) {
     if let Some(Action::DeleteAll) = action_event_reader.iter().next() {
@@ -399,6 +408,12 @@ pub fn end_segment(
 
     // for _ in end_segment_event_reader.iter() {
     if let Some(Action::EndSegment { mut pos }) = action_event_reader.iter().next() {
+        // if action_event_reader.iter().any(|x| match x {
+        //     &Action::EndSegment { pos: _ } => true,
+        //     _ => false,
+        // }) {
+        // let mut pos = Point::new(0.0, 0.0);
+        info!("up here");
         for (parent, entity, mut transform, mesh_handle, making_segment) in segment_query.iter_mut()
         {
             // snap end to grid
@@ -431,6 +446,8 @@ pub fn end_segment(
             *transform = segment_meta.transform;
 
             commands.entity(entity).remove::<MakingSegment>();
+
+            info!("end segment, and start new");
 
             start_segment_event_writer.send(StartMakingSegment { start: pos });
         }

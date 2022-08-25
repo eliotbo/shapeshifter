@@ -27,16 +27,18 @@ pub enum Action {
     SelectPoly { pos: Vec2, keep_selected: bool },
     DeleteAll,
     ToggleGrid,
-    QuickLoadTarget,
+    QuickLoadTarget { maybe_name: Option<String> },
     MaybeTranslatePoly,
     MaybeRotatePoly,
     RevertToInit,
     SaveOneDialog,
     LoadDialog,
-    QuickLoad,
+    QuickLoad { maybe_name: Option<String> },
+    QuickLoadAll, // no bindings yet
     QuickSave,
     LoadTarget,
     MovePathPoint,
+    DeleteTarget,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -246,12 +248,15 @@ pub fn direct_action(
         }
 
         (false, true, false) if pressed_s => action_event.send(Action::QuickSave),
-        (false, true, false) if pressed_l => action_event.send(Action::QuickLoad),
-        (false, true, false) if pressed_t => action_event.send(Action::QuickLoadTarget),
-
         (true, true, false) if pressed_s => action_event.send(Action::SaveOneDialog),
         (true, true, false) if pressed_l => action_event.send(Action::LoadDialog),
         (true, true, false) if pressed_t => action_event.send(Action::LoadTarget),
+        (false, true, false) if pressed_l => {
+            action_event.send(Action::QuickLoad { maybe_name: None })
+        }
+        (false, true, false) if pressed_t => {
+            action_event.send(Action::QuickLoadTarget { maybe_name: None })
+        }
 
         //
         //
@@ -288,7 +293,9 @@ pub fn direct_action(
             });
         }
 
-        (true, true, _) if pressed_delete => action_event.send(Action::DeleteAll),
+        (true, true, false) if pressed_delete => action_event.send(Action::DeleteAll),
+
+        (true, true, true) if pressed_delete => action_event.send(Action::DeleteTarget),
 
         (_, _, _) if pressed_delete => action_event.send(Action::DeleteSelected),
 
@@ -335,9 +342,10 @@ pub fn direct_release_action(
 ) {
     if mouse_button_input.just_released(MouseButton::Left) {
         // delete MakingSegment if it exists
-        for entity in segment_query.iter() {
-            commands.entity(entity).remove::<MakingSegment>();
-        }
+        // for entity in segment_query.iter() {
+        //     commands.entity(entity).remove::<MakingSegment>();
+        // }
+
         for entity in path_point_query.iter() {
             commands.entity(entity).remove::<MovingPathPoint>();
             info!("removing MovingPathPoint");

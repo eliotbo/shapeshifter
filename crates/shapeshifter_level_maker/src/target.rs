@@ -1,5 +1,6 @@
 use crate::material::*;
 // use crate::poly::make_polygon_mesh;
+use crate::input::Action;
 use crate::poly::Polygon;
 use crate::util::*;
 
@@ -27,7 +28,25 @@ impl Plugin for TargetPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<LoadedTarget>()
             .add_system(spawn_target)
+            .add_system(delete_target)
             .add_system(check_win_condition);
+    }
+}
+
+pub fn delete_target(
+    mut commands: Commands,
+    query: Query<Entity, With<Target>>,
+    mut action_event_reader: EventReader<Action>,
+) {
+    // if let Some(Action::DeleteTarget) = action_event_reader.iter().next() {
+    if action_event_reader
+        .iter()
+        .any(|x| x == &Action::DeleteTarget)
+    {
+        info!("delete_target");
+        for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
     }
 }
 
@@ -54,16 +73,15 @@ pub fn spawn_target(
         }
 
         //
-        //
-        //
-        // global position of the target
-        //
-        let abs_pos = Vec2::new(300.0, 0.0);
+        // shift the target to the center of the screen, so that the path is
+        // always in the center of the screen. The entity containing the path
+        // will be shifted to the right.
+        let points = shift_to_center_of_mass(&loaded_target.save_mesh_meta.points);
 
         //
         // trace the path of the target
         let mut builder = Path::builder();
-        for (idx, original_pos) in loaded_target.save_mesh_meta.points.iter().enumerate() {
+        for (idx, original_pos) in points.iter().enumerate() {
             //
             //
             // The target area should be larger than the smallest area of the corresponding polygon
@@ -73,9 +91,9 @@ pub fn spawn_target(
             //
             //
             if idx == 0 {
-                builder.begin(Point::new(pos.x + abs_pos.x, pos.y + abs_pos.y));
+                builder.begin(Point::new(pos.x, pos.y));
             } else {
-                builder.line_to(Point::new(pos.x + abs_pos.x, pos.y + abs_pos.y));
+                builder.line_to(Point::new(pos.x, pos.y));
             };
         }
         //
@@ -88,7 +106,7 @@ pub fn spawn_target(
         // Make the mesh corresponding to the target path. The "false" means that the path
         // should not be displaced to the origin
         //
-        let (mesh, _center_of_mass) = make_polygon_mesh(&path, false);
+        let (mesh, _center_of_mass) = make_polygon_mesh(&path, true);
 
         let material = materials.add(TargetMesh2dMaterial {
             color: globals.target_color.into(),
@@ -102,7 +120,7 @@ pub fn spawn_target(
             .spawn_bundle(MaterialMesh2dBundle {
                 mesh: Mesh2dHandle(meshes.add(mesh)),
                 material,
-                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+                transform: Transform::from_translation(Vec3::new(300.0, 0.0, 0.0)),
                 ..Default::default()
             })
             .insert(Target { path });
@@ -114,15 +132,16 @@ pub fn spawn_target(
 // Checks whether all the points of all polygons are within the bounds of the target path
 pub fn check_win_condition(
     query: Query<(&Transform, &MeshMeta), With<Polygon>>,
-    target_query: Query<&Target>,
+    target_query: Query<(&Target, &Transform)>,
     mut check_win_condition_event: EventReader<TestWinEvent>,
 ) {
     for _ in check_win_condition_event.iter() {
         //
         //
         //
-        if let Some(target) = target_query.iter().next() {
+        if let Some((target, target_transform)) = target_query.iter().next() {
             let mut has_won = true;
+            let (transformed_target_path, _) = transform_path(&target.path, target_transform);
             for (transform, meta) in query.iter() {
                 //
                 //
@@ -134,8 +153,8 @@ pub fn check_win_condition(
                 for seg in transformed_path.iter() {
                     let pos: Point = seg.from();
 
-                    if !hit_test_path(&pos, target.path.iter(), FillRule::EvenOdd, 0.1) {
-                        println!("outside of target");
+                    if !hit_test_path(&pos, transformed_target_path.iter(), FillRule::EvenOdd, 0.1)
+                    {
                         has_won = false;
                     }
                 }

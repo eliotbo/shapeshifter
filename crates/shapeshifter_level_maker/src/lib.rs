@@ -1,24 +1,34 @@
 // TODO: delete this example
 
-pub mod cut;
+mod cut;
 pub mod input;
 pub mod load;
-pub mod material;
-pub mod poly;
+mod material;
+mod poly;
 pub mod save;
-pub mod target;
-pub mod util;
-pub mod view;
+mod target;
+mod util;
+mod view;
 
-pub use cut::*;
-pub use input::*;
-pub use load::*;
-pub use material::*;
-pub use poly::*;
-pub use save::*;
-pub use target::*;
-pub use util::*;
-pub use view::*;
+// pub use cut::*;
+// pub use input::*;
+// pub use load::*;
+// pub use material::*;
+// pub use poly::*;
+// pub use save::*;
+// pub use target::*;
+// pub use util::*;
+// pub use view::*;
+
+use cut::*;
+use input::*;
+use load::*;
+use material::*;
+use poly::*;
+use save::*;
+use target::*;
+use util::*;
+use view::*;
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_easings::*;
@@ -44,7 +54,6 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
         //
         app.add_event::<StartMakingSegment>()
             .add_event::<Action>()
-            .add_event::<Load>()
             .add_event::<TestCollisionEvent>()
             .add_event::<TestWinEvent>()
             .insert_resource(Globals::default())
@@ -83,8 +92,9 @@ pub fn setup_mesh(
 ) {
     // load_event_writer.send(Load("my_mesh2".to_string()));
     // action_event_writer.send(Action::LoadDialog);
-    action_event_writer.send(Action::QuickLoad);
-    action_event_writer.send(Action::QuickLoadTarget);
+    // action_event_writer.send(Action::QuickLoadTarget { maybe_name: None });
+
+    // action_event_writer.send(Action::ToggleGrid);
 }
 
 pub fn debug_input(mut action_event_reader: EventReader<Action>) {
@@ -98,19 +108,28 @@ pub fn revert_to_init(
     query: Query<Entity, Or<(With<Polygon>, With<CutSegment>)>>,
     mut action_event_reader: EventReader<Action>,
     mut load_event_writer: EventWriter<Load>,
+    mut load_target_event_writer: EventWriter<LoadTarget>,
+    loaded_path: Res<LoadedTargetPath>,
+    loaded_target_path: Res<LoadedTargetPath>,
+    // mut action_event_writer: EventWriter<Action>,
 ) {
     if let Some(Action::RevertToInit) = action_event_reader.iter().next() {
         for entity in query.iter() {
             commands.entity(entity).despawn_recursive();
         }
-        load_event_writer.send(Load("my_mesh2".to_string()));
+        if let Some(ref name) = loaded_path.maybe_path {
+            load_event_writer.send(Load(name.clone()));
+        }
+        if let Some(ref name) = loaded_target_path.maybe_path {
+            load_event_writer.send(Load(name.clone()));
+        }
     }
 }
 
 pub fn test_collisions(
     mut commands: Commands,
     mut query: Query<(&Transform, &mut MeshMeta), With<Polygon>>,
-    target_query: Query<&Target>,
+    target_query: Query<(&Transform, &Target)>,
     mut collision_test_event: EventReader<TestCollisionEvent>,
     mut check_win_condition_event: EventWriter<TestWinEvent>,
 ) {
@@ -133,8 +152,8 @@ pub fn test_collisions(
             }
         }
 
-        if let Some(target) = target_query.iter().next() {
-            if meta1.precise_intersect_test(&target.path, &transform1, &Transform::identity()) {
+        if let Some((transform, target)) = target_query.iter().next() {
+            if meta1.precise_intersect_test(&target.path, &transform1, &transform) {
                 // println!("target collision");
                 do_go_back_to_previous_pos = true;
             }

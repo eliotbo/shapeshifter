@@ -34,6 +34,7 @@ impl Plugin for SavePlugin {
 
 pub fn save_one_selected(
     mesh_query: Query<(&Transform, &MeshMeta), (With<Polygon>, With<Selected>)>,
+    mesh_query_no_select: Query<(&Transform, &MeshMeta), (With<Polygon>, Without<Selected>)>,
     mut action_event_reader: EventReader<Action>,
 ) {
     if let Some(Action::SaveOneDialog) = action_event_reader.iter().next() {
@@ -61,6 +62,20 @@ pub fn save_one_selected(
                 let serialized = serde_json::to_string_pretty(&save_mesh_meta).unwrap();
                 let mut output = File::create(chosen_path).unwrap();
                 let _group_write_result = output.write(serialized.as_bytes());
+            } else {
+                if let Some((transform, mesh_meta)) = mesh_query_no_select.iter().next() {
+                    let (axis, transform_rotation_angle) = transform.rotation.to_axis_angle();
+                    let angle = axis.z * transform_rotation_angle;
+
+                    let save_mesh_meta: SaveMeshMeta = SaveMeshMeta {
+                        points: mesh_meta.points.clone(),
+                        translation: transform.translation.truncate(),
+                        rotation: angle,
+                    };
+                    let serialized = serde_json::to_string_pretty(&save_mesh_meta).unwrap();
+                    let mut output = File::create(chosen_path).unwrap();
+                    let _group_write_result = output.write(serialized.as_bytes());
+                }
             }
         }
     }
