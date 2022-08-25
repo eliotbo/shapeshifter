@@ -39,7 +39,7 @@ impl Default for Globals {
             polygon_color: Color::PURPLE,
             cutting_segment_thickness: 2.0,
             cutting_segment_color: Color::ORANGE,
-            target_color: Color::DARK_GREEN,
+            target_color: Color::DARK_GRAY,
             ghost_color: Color::rgba(0.02, 0.01, 0.21, 1.0),
             min_turn_angle: core::f32::consts::PI / 20.0,
             cut_polygon: Color::TEAL,

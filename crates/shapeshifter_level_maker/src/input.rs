@@ -186,6 +186,7 @@ pub fn direct_action(
         keyboard_input.pressed(KeyCode::LControl),
         keyboard_input.pressed(KeyCode::Space),
     ) {
+        (true, true, true) if pressed_delete => action_event.send(Action::DeleteTarget),
         //
         //
         //
@@ -294,8 +295,6 @@ pub fn direct_action(
         }
 
         (true, true, false) if pressed_delete => action_event.send(Action::DeleteAll),
-
-        (true, true, true) if pressed_delete => action_event.send(Action::DeleteTarget),
 
         (_, _, _) if pressed_delete => action_event.send(Action::DeleteSelected),
 

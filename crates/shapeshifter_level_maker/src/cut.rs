@@ -271,13 +271,13 @@ pub fn perform_cut(
                 println!("nope, number of intersects: {}", num_intersects);
                 // remove the cut entity
 
-                // visual check for whether the intersects are positioned and sorted correctly
-                show_intersects(
-                    &mut commands,
-                    &mut meshes,
-                    &only_intersects,
-                    &mut fill_materials,
-                );
+                // // visual check for whether the intersects are positioned and sorted correctly
+                // show_intersects(
+                //     &mut commands,
+                //     &mut meshes,
+                //     &only_intersects,
+                //     &mut fill_materials,
+                // );
 
                 continue;
             }

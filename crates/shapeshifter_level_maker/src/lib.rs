@@ -109,7 +109,7 @@ pub fn revert_to_init(
     mut action_event_reader: EventReader<Action>,
     mut load_event_writer: EventWriter<Load>,
     mut load_target_event_writer: EventWriter<LoadTarget>,
-    loaded_path: Res<LoadedTargetPath>,
+    loaded_path: Res<LoadedPolyPath>,
     loaded_target_path: Res<LoadedTargetPath>,
     // mut action_event_writer: EventWriter<Action>,
 ) {
@@ -118,10 +118,11 @@ pub fn revert_to_init(
             commands.entity(entity).despawn_recursive();
         }
         if let Some(ref name) = loaded_path.maybe_path {
+            info!("reverting to {}", name);
             load_event_writer.send(Load(name.clone()));
         }
         if let Some(ref name) = loaded_target_path.maybe_path {
-            load_event_writer.send(Load(name.clone()));
+            load_target_event_writer.send(LoadTarget(name.clone()));
         }
     }
 }

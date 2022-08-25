@@ -2,6 +2,7 @@ PLAN
 
 TODO:
 
+1) grid for cut end while moving
 
 
 

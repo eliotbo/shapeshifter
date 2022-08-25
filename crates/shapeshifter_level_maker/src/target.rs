@@ -88,6 +88,7 @@ pub fn spawn_target(
             // to allow for leeway when placing the polygon pieces
             //
             let pos = globals.target_size_multiplier * *original_pos;
+            // let pos = *original_pos;
             //
             //
             if idx == 0 {
@@ -106,7 +107,7 @@ pub fn spawn_target(
         // Make the mesh corresponding to the target path. The "false" means that the path
         // should not be displaced to the origin
         //
-        let (mesh, _center_of_mass) = make_polygon_mesh(&path, true);
+        let (mesh, _center_of_mass) = make_polygon_mesh(&path, false);
 
         let material = materials.add(TargetMesh2dMaterial {
             color: globals.target_color.into(),

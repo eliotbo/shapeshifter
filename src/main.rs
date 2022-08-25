@@ -35,10 +35,10 @@ fn setup(
     // mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     action_event_writer.send(Action::QuickLoad {
-        maybe_name: Some("002_simplicity_square".to_string()),
+        maybe_name: Some("frog".to_string()),
     });
     action_event_writer.send(Action::QuickLoadTarget {
-        maybe_name: Some("002_simplicity_square".to_string()),
+        maybe_name: Some("004_simplicity_square_parallel".to_string()),
     });
     action_event_writer.send(Action::ToggleGrid); //
 

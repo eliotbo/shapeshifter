@@ -96,9 +96,14 @@ pub fn delete_all(
         )>,
     >,
     mut action_event_reader: EventReader<Action>,
+    target_query: Query<Entity, With<crate::target::Target>>,
 ) {
     if let Some(Action::DeleteAll) = action_event_reader.iter().next() {
         for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        for entity in target_query.iter() {
             commands.entity(entity).despawn_recursive();
         }
     }
@@ -679,7 +684,8 @@ pub fn move_path_point(
 
         *mesh_handle = Mesh2dHandle(meshes.add(mesh));
 
-        // transform.translation = Vec3::new(0., 0., transform.translation.z);
+        let z = transform.translation.z;
         *transform = Transform::identity();
+        transform.translation = Vec3::new(0., 0., z);
     }
 }
