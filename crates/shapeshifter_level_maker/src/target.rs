@@ -146,10 +146,16 @@ pub fn check_win_condition(
             for (transform, meta) in query.iter() {
                 //
                 //
+                if meta.is_intersecting {
+                    has_won = false;
+                    break;
+                }
+                //
+                //
                 //
                 // At this point, we know that the polygon segments are not intersecting with
-                // the target's segments, because this test was passed before sending TestWinEvent
-                // from test_collisions(..)
+                // the target's segments, because of meta.is_intersecting.
+                // This test was passed before sending TestWinEvent from test_collisions(..)
                 let (transformed_path, _) = transform_path(&meta.path, transform);
                 for seg in transformed_path.iter() {
                     let pos: Point = seg.from();

@@ -148,28 +148,26 @@ pub fn quick_load(
     mut loaded_path: ResMut<LoadedPolyPath>,
     mut load_event_reader: EventReader<Load>,
 ) {
-    let mut maybe_file_name: Option<String> = None;
-    let mut do_load = false;
-    match action_event_reader.iter().next() {
-        Some(Action::QuickLoad {
-            maybe_name: Some(name),
-        }) => {
-            maybe_file_name = Some(name.to_owned());
-            do_load = true;
-        }
-        Some(Action::QuickLoad { maybe_name: None }) => {
-            do_load = true;
-        }
-        _ => {}
-    };
+    let mut maybe_file_name_vec: Vec<String> = vec![];
+
+    for action in action_event_reader.iter() {
+        match action {
+            Action::QuickLoad {
+                maybe_name: Some(name),
+            } => {
+                maybe_file_name_vec.push(name.to_owned());
+            }
+            Action::QuickLoad { maybe_name: None } => {}
+            _ => {}
+        };
+    }
 
     for load in load_event_reader.iter() {
         // load_names.push(load.0.clone());
-        maybe_file_name = Some(load.0.clone());
-        do_load = true;
+        maybe_file_name_vec.push(load.0.clone());
     }
 
-    if do_load {
+    for maybe_file_name in maybe_file_name_vec {
         let mut save_prepath = std::env::current_dir().unwrap();
         save_prepath.push("assets/meshes/");
         //
@@ -177,11 +175,13 @@ pub fn quick_load(
         //
         // load POLYGON
 
-        let file_name = if let Some(name) = maybe_file_name {
-            name.to_owned()
-        } else {
-            "001_simplicity_square".to_owned()
-        };
+        let file_name = maybe_file_name.to_owned();
+
+        // let file_name = if let Some(name) = maybe_file_name {
+        //     name.to_owned()
+        // } else {
+        //     "001_simplicity_square".to_owned()
+        // };
 
         loaded_path.maybe_path = Some(file_name.clone());
         save_prepath.push(file_name + ".pts");
@@ -204,6 +204,7 @@ pub fn quick_load(
             color: globals.polygon_color.into(),
             show_com: 0.0,
             selected: 0.0,
+            is_intersecting: 0.0,
         });
 
         let mut path: NoAttributes<BuilderImpl> = Path::builder();
@@ -254,6 +255,7 @@ pub fn quick_load(
                 path: transformed_path.clone(),
                 points: loaded_mesh_params.points, //TODO
                 previous_transform: transform,
+                is_intersecting: false,
             })
             .id();
 
@@ -261,6 +263,7 @@ pub fn quick_load(
             color: globals.ghost_color.into(),
             show_com: 0.0,
             selected: 0.0,
+            is_intersecting: 0.0,
         });
 
         let mut ghost_transform = transform;
@@ -384,6 +387,7 @@ pub fn quick_load_all_mesh(
                 color: poly_color.into(),
                 show_com: 0.0,
                 selected: 0.0,
+                is_intersecting: 0.0,
             });
 
             //
@@ -440,6 +444,7 @@ pub fn quick_load_all_mesh(
                     path: transformed_path.clone(),
                     points: loaded_mesh_params.points, //TODO
                     previous_transform: transform,
+                    is_intersecting: false,
                 })
                 .id();
 
@@ -447,6 +452,7 @@ pub fn quick_load_all_mesh(
                 color: globals.ghost_color.into(),
                 show_com: 0.0,
                 selected: 0.0,
+                is_intersecting: 0.0,
             });
 
             let mut ghost_transform = transform;
@@ -500,6 +506,7 @@ pub fn load_mesh(
                 color: poly_color.into(),
                 show_com: 0.0,
                 selected: 0.0,
+                is_intersecting: 0.0,
             });
 
             //
@@ -556,6 +563,7 @@ pub fn load_mesh(
                     path: transformed_path.clone(),
                     points: loaded_mesh_params.points, //TODO
                     previous_transform: transform,
+                    is_intersecting: false,
                 })
                 .id();
 
@@ -563,6 +571,7 @@ pub fn load_mesh(
                 color: globals.ghost_color.into(),
                 show_com: 0.0,
                 selected: 0.0,
+                is_intersecting: 0.0,
             });
 
             let mut ghost_transform = transform;

@@ -14,6 +14,8 @@ pub struct FillMesh2dMaterial {
     pub show_com: f32,
     #[uniform(0)]
     pub selected: f32,
+    #[uniform(0)]
+    pub is_intersecting: f32,
 }
 
 pub struct FillMesh2dPlugin;

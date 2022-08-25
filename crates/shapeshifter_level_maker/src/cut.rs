@@ -409,6 +409,7 @@ pub fn perform_cut(
                     color: Color::TEAL.into(),
                     show_com: 0.0, // show center of mass
                     selected: 0.0,
+                    is_intersecting: 0.0,
                 });
 
                 let translation =
@@ -450,6 +451,7 @@ pub fn perform_cut(
                             .map(|x| *x - center_of_mass)
                             .collect(),
                         previous_transform: fill_transform,
+                        is_intersecting: false,
                     })
                     .insert(ForceMotion {
                         force: Vec2::new(0.0, 0.0),
@@ -627,6 +629,7 @@ pub fn show_intersects(
             color: Vec4::new(r, b, g, 1.),
             show_com: 0.0, // show center of mass
             selected: 0.0,
+            is_intersecting: 0.0,
         });
         commands.spawn_bundle(MaterialMesh2dBundle {
             mesh: ends_mesh_handle.clone(),

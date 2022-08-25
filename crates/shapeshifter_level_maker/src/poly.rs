@@ -514,6 +514,7 @@ pub fn end_polygon(
                 color: globals.polygon_color.into(),
                 show_com: 0.0, // show center of mass
                 selected: 0.0,
+                is_intersecting: 0.0,
             });
 
             let translation = lyon::geom::Translation::new(-center_of_mass.x, -center_of_mass.y);
@@ -544,6 +545,7 @@ pub fn end_polygon(
                         .map(|x| *x - center_of_mass)
                         .collect(),
                     previous_transform: fill_transform,
+                    is_intersecting: false,
                 })
                 .id();
 

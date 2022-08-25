@@ -2,7 +2,9 @@ PLAN
 
 TODO:
 
+0) ghost of target in middle to align when cutting
 1) grid for cut end while moving
+2) tetris like arrows (holding shift make edges stick to each other)
 
 
 
@@ -11,7 +13,6 @@ TODO:
 
 2) make tutorial section (Simplicity)
 3) make Convexity section 
-4) make lots of animal polygons 
 5) match pairs of animal polygons and try to map them to each other
 
 

@@ -78,7 +78,7 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_system(test_collisions)
             .add_system(revert_to_init)
             .add_system(move_path_point)
-            .add_system(hover_path_point)
+            // .add_system(hover_path_point)
             .add_system(direct_release_action)
             // delete me please
             .add_system(debug_input)
@@ -127,17 +127,43 @@ pub fn revert_to_init(
     }
 }
 
+//
+//
+// To save programming time, we test all polygons against all other polygons when
+// any polygon is moved.
 pub fn test_collisions(
     mut commands: Commands,
-    mut query: Query<(&Transform, &mut MeshMeta), With<Polygon>>,
+    mut query: Query<
+        (
+            Entity,
+            &Transform,
+            &mut MeshMeta,
+            &Handle<FillMesh2dMaterial>,
+        ),
+        With<Polygon>,
+    >,
+    mut fill_mesh_assets: ResMut<Assets<FillMesh2dMaterial>>,
     target_query: Query<(&Transform, &Target)>,
     mut collision_test_event: EventReader<TestCollisionEvent>,
     mut check_win_condition_event: EventWriter<TestWinEvent>,
 ) {
-    for TestCollisionEvent(entity) in collision_test_event.iter() {
-        let mut do_go_back_to_previous_pos = false;
-        let (transform1, meta1) = query.get(*entity).unwrap();
-        for (transform2, meta2) in query.iter() {
+    if let Some(TestCollisionEvent(_entity)) = collision_test_event.iter().next() {
+        // let mut do_go_back_to_previous_pos = false;
+        // let mut meta1_intercting = false;
+        // let (entity1, transform1, meta1, mat_handle1) = query.get(*entity).unwrap();
+        // meta1.is_intersecting = false;
+        // let fill_mat = fill_mesh_assets.get_mut(mat_handle1).unwrap();
+        //
+        let mut colliding_entities: Vec<Entity> = Vec::new();
+
+        // for (entity1, transform1, meta1, _) in query.iter() {
+        //     let fill_mat1 = fill_mesh_assets.get_mut(mat_handle1).unwrap();
+        //     for (entity2, transform2, meta2, _) in query.iter() {
+
+        let mut iter = query.iter_combinations_mut();
+        while let Some([(entity1, transform1, meta1, _), (entity2, transform2, meta2, _)]) =
+            iter.fetch_next()
+        {
             //
             // do not test collision with self
             if meta1.id == meta2.id {
@@ -148,33 +174,59 @@ pub fn test_collisions(
             //
             if meta1.bounding_box_collide(&meta2.path, &transform1, &transform2) {
                 if meta1.precise_intersect_test(&meta2.path, &transform1, &transform2) {
-                    do_go_back_to_previous_pos = true;
+                    // do_go_back_to_previous_pos = true;
+                    //
+                    //
+
+                    colliding_entities.push(entity2);
+                    colliding_entities.push(entity1);
+                }
+            }
+        }
+        //
+        //
+        // test the target zone
+        for (entity1, transform1, meta1, _) in query.iter() {
+            if let Some((transform, target)) = target_query.iter().next() {
+                if meta1.precise_intersect_test(&target.path, &transform1, &transform) {
+                    colliding_entities.push(entity1);
                 }
             }
         }
 
-        if let Some((transform, target)) = target_query.iter().next() {
-            if meta1.precise_intersect_test(&target.path, &transform1, &transform) {
-                // println!("target collision");
-                do_go_back_to_previous_pos = true;
+        // for entity in colliding_entities {
+        for (entity, _, mut meta, mat_handle) in query.iter_mut() {
+            let fill_mat = fill_mesh_assets.get_mut(mat_handle).unwrap();
+            if colliding_entities.contains(&entity) {
+                meta.is_intersecting = true;
+
+                fill_mat.is_intersecting = 1.0;
+            } else {
+                meta.is_intersecting = false;
+
+                fill_mat.is_intersecting = 0.0;
             }
         }
 
-        let (transform1, mut meta1) = query.get_mut(*entity).unwrap();
-
-        if do_go_back_to_previous_pos {
-            info!("inserting easing");
-            commands.entity(*entity).insert(transform1.ease_to(
-                meta1.previous_transform,
-                bevy_easings::EaseFunction::BounceOut,
-                bevy_easings::EasingType::Once {
-                    duration: std::time::Duration::from_secs_f32(0.3),
-                },
-            ));
-        } else {
-            meta1.previous_transform = transform1.clone();
+        if colliding_entities.len() == 0 {
             check_win_condition_event.send(TestWinEvent);
         }
+
+        // let (transform1, mut meta1, _) = query.get_mut(*entity).unwrap();
+
+        // if do_go_back_to_previous_pos {
+        //     info!("inserting easing");
+        //     commands.entity(*entity).insert(transform1.ease_to(
+        //         meta1.previous_transform,
+        //         bevy_easings::EaseFunction::BounceOut,
+        //         bevy_easings::EasingType::Once {
+        //             duration: std::time::Duration::from_secs_f32(0.3),
+        //         },
+        //     ));
+        // } else {
+        //     meta1.previous_transform = transform1.clone();
+        //     check_win_condition_event.send(TestWinEvent);
+        // }
     }
 }
 

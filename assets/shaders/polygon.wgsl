@@ -7,6 +7,7 @@ struct PolygonMaterial {
     color: vec4<f32>, 
     show_com: f32,
     selected: f32,
+    is_intersecting: f32,
 };
 
 @group(1) @binding(0)
@@ -30,8 +31,13 @@ fn fragment(
     let plaid_width = 10.0;
     var color = uni.color;
 
+    if uni.is_intersecting > 0.5 {
+        let intersecting_color = vec4<f32>(1.0, 0.0, 0.0, 0.5);
+        color = mix(color, intersecting_color, 0.8);
+    }
+
     if uni.selected > 0.5 && position.x % plaid_width < plaid_width / 2.0 {
-        let selector_color = vec4<f32>(1.0, 0.0, 0.0, 0.5);
+        let selector_color = vec4<f32>(1.0, 1.0, 0.0, 0.5);
         color = mix(color, selector_color, 0.2);
     }
     
