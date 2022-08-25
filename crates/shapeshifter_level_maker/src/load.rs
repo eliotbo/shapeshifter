@@ -84,47 +84,62 @@ pub fn quick_load_target(
     mut loaded_target_path: ResMut<LoadedTargetPath>,
     mut load_target_event_reader: EventReader<LoadTarget>,
 ) {
-    //
-    //
-    let mut maybe_file_name: Option<String> = None;
-    let mut do_load = false;
+    // //
+    // //
+    // let mut maybe_file_name: Option<String> = None;
+    // let mut do_load = false;
 
-    match action_event_reader.iter().next() {
-        Some(Action::QuickLoadTarget {
-            maybe_name: Some(name),
-        }) => {
-            maybe_file_name = Some(name.to_owned());
-            do_load = true;
-        }
-        Some(Action::QuickLoadTarget { maybe_name: None }) => {
-            do_load = true;
-        }
-        _ => {}
-    };
+    // match action_event_reader.iter().next() {
+    //     Some(Action::QuickLoadTarget {
+    //         maybe_name: Some(name),
+    //     }) => {
+    //         maybe_file_name = Some(name.to_owned());
+    //         do_load = true;
+    //     }
+    //     Some(Action::QuickLoadTarget { maybe_name: None }) => {
+    //         do_load = true;
+    //     }
+    //     _ => {}
+    // };
 
-    for load in load_target_event_reader.iter() {
-        // load_names.push(load.0.clone());
-        maybe_file_name = Some(load.0.clone());
-        do_load = true;
+    // for load in load_target_event_reader.iter() {
+    //     // load_names.push(load.0.clone());
+    //     maybe_file_name = Some(load.0.clone());
+    //     do_load = true;
+    // }
+
+    let mut maybe_file_name_vec: Vec<String> = vec![];
+
+    for action in action_event_reader.iter() {
+        match action {
+            Action::QuickLoadTarget {
+                maybe_name: Some(name),
+            } => {
+                maybe_file_name_vec.push(name.to_owned());
+            }
+
+            _ => {}
+        };
     }
 
-    //
-    //
-    // if let Some(Action::QuickLoadTarget { maybe_name }) = action_event_reader.iter().next() {
-    if do_load {
+    for maybe_file_name in maybe_file_name_vec {
+        //
+        //
+        // if let Some(Action::QuickLoadTarget { maybe_name }) = action_event_reader.iter().next() {
+        // if do_load {
         let mut save_path = std::env::current_dir().unwrap();
         save_path.push("assets/meshes/");
         //
         //
         // load TARGET
-        let file_name = if let Some(name) = maybe_file_name {
-            name.to_owned()
-        } else {
-            "001_simplicity_square".to_owned()
-        };
+        // let file_name = if let Some(name) = maybe_file_name {
+        //     name.to_owned()
+        // } else {
+        //     "001_simplicity_square".to_owned()
+        // };
 
-        loaded_target_path.maybe_path = Some(file_name.clone());
-        save_path.push(file_name + ".pts");
+        loaded_target_path.maybe_path = Some(maybe_file_name.clone());
+        save_path.push(maybe_file_name + ".pts");
 
         let mut file = std::fs::File::open(save_path).unwrap();
         let mut contents = String::new();
@@ -184,7 +199,7 @@ pub fn quick_load(
         // };
 
         loaded_path.maybe_path = Some(file_name.clone());
-        save_prepath.push(file_name + ".pts");
+        save_prepath.push(file_name.clone() + ".pts");
 
         // save_prepath.push(.to_owned());
 
@@ -256,6 +271,7 @@ pub fn quick_load(
                 points: loaded_mesh_params.points, //TODO
                 previous_transform: transform,
                 is_intersecting: false,
+                name: file_name,
             })
             .id();
 
@@ -445,6 +461,7 @@ pub fn quick_load_all_mesh(
                     points: loaded_mesh_params.points, //TODO
                     previous_transform: transform,
                     is_intersecting: false,
+                    name: name.clone(),
                 })
                 .id();
 
@@ -485,7 +502,7 @@ pub fn load_mesh(
 
         // if let Some(Action::LoadDialog) = action_event_reader.iter().next() {
 
-        info!("load dialog AHHHH");
+        // info!("load dialog AHHHH");
         // let maybe_dialog_path = open_file_dialog("save_name", None, "point");
         if let Some(file_path) = rfd::FileDialog::new()
             // .set_file_name(&save_prepath)
@@ -494,6 +511,8 @@ pub fn load_mesh(
         {
             // get mesh meta info using the .points extension
             //
+            let temp_file_path = file_path.clone();
+            let file_name = temp_file_path.file_name().unwrap().to_str().unwrap();
 
             let mut file = std::fs::File::open(file_path).unwrap();
             let mut contents = String::new();
@@ -564,6 +583,7 @@ pub fn load_mesh(
                     points: loaded_mesh_params.points, //TODO
                     previous_transform: transform,
                     is_intersecting: false,
+                    name: file_name.to_string(),
                 })
                 .id();
 

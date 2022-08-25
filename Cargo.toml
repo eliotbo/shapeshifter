@@ -9,7 +9,7 @@ edition = "2021"
 [dependencies]
 shapeshifter_level_maker = {path = "crates/shapeshifter_level_maker"}
 bevy = "0.8"
-# lyon = "1.0"
+lyon = "1.0"
 # rand = "0.8"
 # bevy-inspector-egui = "0.12"
 # serde = { version = "1", features = ["derive"] }

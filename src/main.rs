@@ -1,4 +1,6 @@
+// mod cam;
 use bevy::prelude::*;
+// use cam::*;
 use shapeshifter_level_maker::{input::Action, ShapeshifterLevelMakerPlugin};
 
 const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
@@ -28,8 +30,10 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapeshifterLevelMakerPlugin)
+        // .add_plugin(CamPlugin)
         // Insert as resource the initial value for the settings resources
         .insert_resource(DisplayQuality::Medium)
+        // .add_startup_system(camera_setup)
         .add_startup_system(setup)
         // Declare the game state, and set its startup value
         .add_state(GameState::Splash)
@@ -111,7 +115,7 @@ mod splash {
 mod game {
     use bevy::prelude::*;
 
-    use super::{despawn_screen, DisplayQuality, GameState, TEXT_COLOR};
+    use super::{DisplayQuality, GameState, TEXT_COLOR};
 
     // This plugin will contain the game. In this case, it's just be a screen that will
     // display the current settings for 5 seconds before returning to the menu
@@ -119,8 +123,8 @@ mod game {
 
     impl Plugin for GamePlugin {
         fn build(&self, app: &mut App) {
-            app.add_system_set(SystemSet::on_enter(GameState::Game).with_system(game_setup))
-                .add_system_set(SystemSet::on_update(GameState::Game).with_system(game));
+            app.add_system_set(SystemSet::on_enter(GameState::Game).with_system(game_setup));
+
             // .add_system_set(
             //     SystemSet::on_exit(GameState::Game).with_system(despawn_screen::<OnGameScreen>),
             // );
@@ -170,7 +174,7 @@ mod game {
         //         color: Color::BLACK.into(),
         //         ..default()
         //     })
-        //     .insert(OnGameScreen)
+
         //     .with_children(|parent| {
         //         // Display two lines of text, the second one with the current settings
         //         parent.spawn_bundle(
@@ -212,19 +216,6 @@ mod game {
         //             }),
         //         );
         //     });
-        // // Spawn a 5 seconds timer to trigger going back to the menu
-        // commands.insert_resource(GameTimer(Timer::from_seconds(5.0, false)));
-    }
-
-    // Tick the timer, and change state when finished
-    fn game(
-        time: Res<Time>,
-        mut game_state: ResMut<State<GameState>>,
-        // mut timer: ResMut<GameTimer>,
-    ) {
-        // if timer.tick(time.delta()).finished() {
-        //     game_state.set(GameState::Menu).unwrap();
-        // }
     }
 }
 

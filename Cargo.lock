@@ -3188,6 +3188,7 @@ name = "shapeshifter"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "lyon",
  "shapeshifter_level_maker",
 ]
 

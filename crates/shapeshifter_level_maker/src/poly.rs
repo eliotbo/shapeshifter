@@ -546,6 +546,7 @@ pub fn end_polygon(
                         .collect(),
                     previous_transform: fill_transform,
                     is_intersecting: false,
+                    name: "".to_string(),
                 })
                 .id();
 

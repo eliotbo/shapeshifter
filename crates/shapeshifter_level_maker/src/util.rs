@@ -112,6 +112,7 @@ pub struct MeshMeta {
     pub points: Vec<Vec2>,
     pub previous_transform: Transform,
     pub is_intersecting: bool,
+    pub name: String,
 }
 
 impl MeshMeta {

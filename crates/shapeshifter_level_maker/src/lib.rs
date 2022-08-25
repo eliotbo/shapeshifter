@@ -7,7 +7,7 @@ mod material;
 mod poly;
 pub mod save;
 mod target;
-mod util;
+pub mod util;
 mod view;
 
 // pub use cut::*;

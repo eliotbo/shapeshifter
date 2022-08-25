@@ -452,6 +452,7 @@ pub fn perform_cut(
                             .collect(),
                         previous_transform: fill_transform,
                         is_intersecting: false,
+                        name: "".to_string(),
                     })
                     .insert(ForceMotion {
                         force: Vec2::new(0.0, 0.0),
