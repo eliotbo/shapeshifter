@@ -145,6 +145,7 @@ pub struct SpawnLevel {
     pub polygon: String,
     pub target: String,
     pub target_multiplier: f32,
+    pub number_of_cuts: usize,
 }
 
 impl SpawnLevel {
@@ -153,9 +154,25 @@ impl SpawnLevel {
             polygon: polygon.to_string(),
             target: target.to_string(),
             target_multiplier: TARGET_MULT,
+            number_of_cuts: 3,
+        }
+    }
+
+    pub fn new3(polygon: &str, target: &str, number_of_cuts: usize) -> Self {
+        Self {
+            polygon: polygon.to_string(),
+            target: target.to_string(),
+            target_multiplier: TARGET_MULT,
+            number_of_cuts,
         }
     }
 }
+
+pub struct RemainingCuts {
+    pub remaining: usize,
+}
+
+pub struct PerformedCut;
 
 pub struct HasWonLevelEvent;
 
@@ -647,6 +664,7 @@ pub fn spawn_poly(
         polygon,
         target: _,
         target_multiplier: _,
+        number_of_cuts: _,
     } in spawn_level_event_reader.iter()
     {
         poly_vec.push(SpawnPoly {
@@ -786,6 +804,7 @@ pub fn spawn_target(
         polygon: _,
         target,
         target_multiplier,
+        number_of_cuts: _,
     } in spawn_level_event_reader.iter()
     {
         target_vec.push(SpawnTarget {

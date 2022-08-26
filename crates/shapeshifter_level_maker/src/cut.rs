@@ -52,7 +52,8 @@ pub struct CutPlugin;
 
 impl Plugin for CutPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(start_cut_segment)
+        app.insert_resource(RemainingCuts { remaining: 1000 })
+            .add_system(start_cut_segment)
             .add_system(end_cut_segment)
             .add_system(making_cut_segment)
             .add_system(move_after_cut)
@@ -69,34 +70,36 @@ pub fn start_cut_segment(
     globals: Res<Globals>,
     cursor: Res<Cursor>,
     mut action_event_reader: EventReader<Action>,
+    remainin_cuts: Res<RemainingCuts>,
 ) {
     // for start_segment in start_segment_event_reader.iter() {
     if let Some(Action::StartMakingCutSegment { start }) = action_event_reader.iter().next() {
         // let start = Vec2::new(start_segment.start.x, start_segment.start.y);
         // info!("start_cut_segment: {:?}", start);
-        let segment = Segment {
-            start: Point::new(start.x, start.y),
+        if remainin_cuts.remaining > 0 {
+            let segment = Segment {
+                start: Point::new(start.x, start.y),
 
-            end: cursor.clone().into(),
-        };
+                end: cursor.clone().into(),
+            };
 
-        let segment_meta = get_segment_meta(segment);
+            let segment_meta = get_segment_meta(segment);
 
-        let mesh = bevy::sprite::Mesh2dHandle(meshes.add(Mesh::from(shape::Quad::new(Vec2::new(
-            segment_meta.length,
-            globals.cutting_segment_thickness,
-        )))));
+            let mesh = bevy::sprite::Mesh2dHandle(meshes.add(Mesh::from(shape::Quad::new(
+                Vec2::new(segment_meta.length, globals.cutting_segment_thickness),
+            ))));
 
-        let material = materials.add(globals.cutting_segment_color.into());
-        commands
-            .spawn_bundle(MaterialMesh2dBundle {
-                mesh,
-                material,
-                transform: segment_meta.transform,
-                ..Default::default()
-            })
-            .insert(MakingCutSegment { start: *start })
-            .insert(CutSegment);
+            let material = materials.add(globals.cutting_segment_color.into());
+            commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh,
+                    material,
+                    transform: segment_meta.transform,
+                    ..Default::default()
+                })
+                .insert(MakingCutSegment { start: *start })
+                .insert(CutSegment);
+        }
     }
 }
 
@@ -161,6 +164,7 @@ pub fn end_cut_segment(
 
             *transform = segment_meta.transform;
             commands.entity(entity).remove::<MakingCutSegment>();
+            // commands.entity(entity).despawn_recursive();
             commands.entity(entity).insert(JustMadeCut { segment });
         }
     }
@@ -197,6 +201,7 @@ pub fn move_after_cut(
 pub fn perform_cut(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut remaining_cuts: ResMut<RemainingCuts>,
 
     mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
     cut_query: Query<(Entity, &JustMadeCut)>,
@@ -204,8 +209,10 @@ pub fn perform_cut(
         (Entity, &Handle<FillMesh2dMaterial>, &Transform, &MeshMeta),
         With<Polygon>,
     >,
+    // mut performed_cut_event_writer: EventWriter<PerformedCut>,
 ) {
     for (cut_entity, cut) in cut_query.iter() {
+        commands.entity(cut_entity).despawn();
         let mut do_remove_cut_entity = true;
         for (poly_entity, _material_handle, transform, mesh_meta) in polygon_query.iter_mut() {
             //
@@ -494,6 +501,9 @@ pub fn perform_cut(
         }
         if do_remove_cut_entity {
             commands.entity(cut_entity).despawn();
+        } else {
+            // performed_cut_event_writer.send(PerformedCut);
+            remaining_cuts.remaining -= 1;
         }
     }
 }

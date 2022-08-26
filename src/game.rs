@@ -1,9 +1,13 @@
 use crate::levels::*;
 
+use bevy::audio::AudioSink;
 use bevy::prelude::*;
-use shapeshifter_level_maker::util::{HasWonLevelEvent, SpawnLevel};
 
-use super::{DisplayQuality, GameState, TEXT_COLOR};
+use shapeshifter_level_maker::util::{
+    HasWonLevelEvent, Polygon, RemainingCuts, SpawnLevel, Target,
+};
+
+use super::{GameState, TEXT_COLOR};
 
 // This plugin will contain the game. In this case, it's just be a screen that will
 // display the current settings for 5 seconds before returning to the menu
@@ -13,21 +17,29 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameLevels::default())
             .insert_resource(CurrentLevel::Simplicity(0))
+            .insert_resource(UnlockedCities { cities: Vec::new() })
             .add_event::<NextLevel>()
             .add_event::<PreviousLevel>()
             .add_event::<WonTheGame>()
+            .add_event::<SpawnPauseMenu>()
+            .add_event::<SpawnNextLevelButton>()
             .add_system_set(SystemSet::on_exit(GameState::Game).with_system(delete_game_entities))
             .add_system_set(
                 SystemSet::on_enter(GameState::Game)
                     .with_system(game_setup)
-                    .with_system(spawn_next_level_button),
+                    .with_system(spawn_remaining_cuts_label),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::Game)
+                    .with_system(spawn_next_level_button)
+                    .with_system(spawn_pause_menu)
                     .with_system(next_level)
+                    .with_system(spawn_level_adjust_cuts_resource)
                     .with_system(previous_level)
                     .with_system(next_button_action)
                     .with_system(force_next_level)
+                    .with_system(adjust_cuts_label)
+                    .with_system(show_pause_menu)
                     .with_system(activate_next_level_button),
             );
 
@@ -37,9 +49,14 @@ impl Plugin for GamePlugin {
     }
 }
 
+pub struct UnlockedCities {
+    pub cities: Vec<CurrentLevel>,
+}
+
 // #[derive(Deref, DerefMut)]
 // struct GameTimer(Timer);
 
+#[derive(Clone)]
 pub enum CurrentLevel {
     Simplicity(usize),
     Convexity(usize),
@@ -62,25 +79,43 @@ impl CurrentLevel {
     }
 }
 
+pub struct SpawnPauseMenu;
 pub struct NextLevel;
 pub struct PreviousLevel;
 pub struct WonTheGame;
+pub struct SpawnNextLevelButton;
 
 #[derive(Component)]
 pub struct PauseMenu;
+
+#[derive(Component)]
+pub struct NextButtonParent;
+
+#[derive(Component)]
+pub struct RemainingCutsComponent;
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 
 #[derive(Component)]
 enum GameButtonAction {
     GoNext,
-    Revert,
+    Restart,
     GoBack,
+    ToMenu,
 }
 
 fn delete_game_entities(
     mut commands: Commands,
-    query: Query<Entity>,
+    query: Query<
+        Entity,
+        Or<(
+            With<PauseMenu>,
+            With<NextButtonParent>,
+            With<Target>,
+            With<Polygon>,
+            With<RemainingCutsComponent>,
+        )>,
+    >,
     mut current_level: ResMut<CurrentLevel>,
 ) {
     current_level.simplicity(0);
@@ -89,111 +124,265 @@ fn delete_game_entities(
     }
 }
 
-fn spawn_pause_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn spawn_pause_menu(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut spawn_pause_menu_event_reader: EventReader<SpawnPauseMenu>,
+) {
+    for _ in spawn_pause_menu_event_reader.iter() {
+        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        // Common style for all buttons on the screen
+        let button_style = Style {
+            size: Size::new(Val::Px(250.0), Val::Px(65.0)),
+            margin: UiRect::all(Val::Px(20.0)),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        };
+
+        let button_text_style = TextStyle {
+            font: font.clone(),
+            font_size: 40.0,
+            color: TEXT_COLOR,
+        };
+        commands
+            .spawn_bundle(NodeBundle {
+                style: Style {
+                    margin: UiRect::all(Val::Auto),
+                    flex_direction: FlexDirection::ColumnReverse,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                color: Color::PURPLE.into(),
+                ..default()
+            })
+            .insert(PauseMenu)
+            .with_children(|parent| {
+                // Display the game name
+                parent.spawn_bundle(
+                    TextBundle::from_section(
+                        "Menu",
+                        TextStyle {
+                            font: font.clone(),
+                            font_size: 80.0,
+                            color: TEXT_COLOR,
+                        },
+                    )
+                    .with_style(Style {
+                        margin: UiRect::all(Val::Px(50.0)),
+                        ..default()
+                    }),
+                );
+
+                // Display three buttons for each action available from the main menu:
+                // - new game
+                // - settings
+                // - quit
+                parent
+                    .spawn_bundle(ButtonBundle {
+                        style: button_style.clone(),
+                        color: NORMAL_BUTTON.into(),
+                        ..default()
+                    })
+                    .insert(GameButtonAction::GoBack)
+                    .with_children(|parent| {
+                        parent.spawn_bundle(TextBundle::from_section(
+                            "Previous level",
+                            button_text_style.clone(),
+                        ));
+                    });
+                parent
+                    .spawn_bundle(ButtonBundle {
+                        style: button_style.clone(),
+                        color: NORMAL_BUTTON.into(),
+                        ..default()
+                    })
+                    .insert(GameButtonAction::Restart)
+                    .with_children(|parent| {
+                        parent.spawn_bundle(TextBundle::from_section(
+                            "Restart level",
+                            button_text_style.clone(),
+                        ));
+                    });
+                parent
+                    .spawn_bundle(ButtonBundle {
+                        style: button_style.clone(),
+                        color: NORMAL_BUTTON.into(),
+                        ..default()
+                    })
+                    .insert(GameButtonAction::ToMenu)
+                    .with_children(|parent| {
+                        parent.spawn_bundle(TextBundle::from_section(
+                            "Back to menu",
+                            button_text_style.clone(),
+                        ));
+                    });
+            });
+    }
+}
+
+// }
+
+fn spawn_remaining_cuts_label(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    remaining_cuts: ResMut<RemainingCuts>,
+) {
+    //
+    //
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    // Common style for all buttons on the screen
-    let button_style = Style {
-        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
-        margin: UiRect::all(Val::Px(20.0)),
-        justify_content: JustifyContent::Center,
-        align_items: AlignItems::Center,
-        ..default()
-    };
-    let button_icon_style = Style {
-        size: Size::new(Val::Px(30.0), Val::Auto),
-        // This takes the icons out of the flexbox flow, to be positioned exactly
-        position_type: PositionType::Absolute,
-        // The icon will be close to the left border of the button
-        position: UiRect {
-            left: Val::Px(10.0),
-            right: Val::Auto,
-            top: Val::Auto,
-            bottom: Val::Auto,
-        },
-        ..default()
-    };
-    let button_text_style = TextStyle {
-        font: font.clone(),
-        font_size: 40.0,
-        color: TEXT_COLOR,
-    };
+
+    let label = format!("Cuts: {}", remaining_cuts.remaining);
+
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
                 margin: UiRect::all(Val::Auto),
                 flex_direction: FlexDirection::ColumnReverse,
-                align_items: AlignItems::Center,
+                align_items: AlignItems::FlexEnd,
+                justify_content: JustifyContent::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: UiRect {
+                    left: Val::Px(50.0),
+                    top: Val::Px(50.0),
+                    ..default()
+                },
                 ..default()
             },
-            color: Color::PURPLE.into(),
+            color: Color::rgba(0.0, 0.0, 0.0, 0.0).into(),
+            // visibility: Visibility { is_visible: false },
+            // computed_visibility: ComputedVisibility::not_visible(),
             ..default()
         })
-        .insert(PauseMenu)
         .with_children(|parent| {
-            // Display the game name
-            parent.spawn_bundle(
-                TextBundle::from_section(
-                    "Menu",
+            parent
+                .spawn_bundle(TextBundle::from_section(
+                    label,
                     TextStyle {
                         font: font.clone(),
-                        font_size: 80.0,
+                        font_size: 40.0,
                         color: TEXT_COLOR,
                     },
-                )
-                .with_style(Style {
-                    margin: UiRect::all(Val::Px(50.0)),
-                    ..default()
-                }),
-            );
-
-            // Display three buttons for each action available from the main menu:
-            // - new game
-            // - settings
-            // - quit
-            parent
-                .spawn_bundle(ButtonBundle {
-                    style: button_style.clone(),
-                    color: NORMAL_BUTTON.into(),
-                    ..default()
-                })
-                .insert(GameButtonAction::GoBack)
-                .with_children(|parent| {
-                    parent.spawn_bundle(TextBundle::from_section(
-                        "Previous",
-                        button_text_style.clone(),
-                    ));
-                });
-            parent
-                .spawn_bundle(ButtonBundle {
-                    style: button_style.clone(),
-                    color: NORMAL_BUTTON.into(),
-                    ..default()
-                })
-                .insert(GameButtonAction::Revert)
-                .with_children(|parent| {
-                    let icon = asset_server.load("textures/Game Icons/right.png");
-                    parent.spawn_bundle(ImageBundle {
-                        style: button_icon_style.clone(),
-                        image: UiImage(icon),
-                        ..default()
-                    });
-                    parent.spawn_bundle(TextBundle::from_section(
-                        "Go to city",
-                        button_text_style.clone(),
-                    ));
-                });
+                ))
+                .insert(RemainingCutsComponent);
         });
 }
 
-fn show_pause_menu() {}
+fn spawn_next_level_button(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut spawn_next_level_button_event_reader: EventReader<SpawnNextLevelButton>,
+) {
+    //
 
-fn go_back_to_menu(mut commands: Commands, mut game_state: ResMut<State<GameState>>) {
-    game_state.set(GameState::Menu).unwrap();
+    // for (entity, mut vis) in go_next_button_query.iter_mut() {
+    //     vis.is_visible = true;
+    //     commands.entity(entity).remove::<super::menu::Inactive>();
+    // }
+
+    if let Some(_) = spawn_next_level_button_event_reader.iter().next() {
+        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+        let button_style = Style {
+            size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+            margin: UiRect::all(Val::Px(3.0)),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        };
+
+        let button_text_style = TextStyle {
+            font: font.clone(),
+            font_size: 32.0,
+            color: TEXT_COLOR,
+        };
+
+        commands
+            .spawn_bundle(NodeBundle {
+                style: Style {
+                    margin: UiRect::all(Val::Auto),
+                    flex_direction: FlexDirection::ColumnReverse,
+                    align_items: AlignItems::FlexEnd,
+                    justify_content: JustifyContent::FlexEnd,
+                    position_type: PositionType::Absolute,
+                    position: UiRect {
+                        right: Val::Px(150.0),
+                        top: Val::Px(50.0),
+                        ..default()
+                    },
+                    ..default()
+                },
+                color: Color::PURPLE.into(),
+                // visibility: Visibility { is_visible: false },
+                // computed_visibility: ComputedVisibility::not_visible(),
+                ..default()
+            })
+            .insert(NextButtonParent)
+            .with_children(|parent| {
+                parent
+                    .spawn_bundle(ButtonBundle {
+                        style: button_style.clone(),
+                        color: NORMAL_BUTTON.into(),
+                        visibility: Visibility { is_visible: true },
+                        ..default()
+                    })
+                    .insert(GameButtonAction::GoNext)
+                    .insert(crate::menu::Inactive)
+                    .with_children(|parent| {
+                        parent.spawn_bundle(TextBundle::from_section(
+                            "Next Level",
+                            button_text_style.clone(),
+                        ));
+                    });
+            });
+    }
+}
+
+fn show_pause_menu(
+    mut commands: Commands,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut query: Query<Entity, With<PauseMenu>>,
+    mut spawn_pause_menu_event_writer: EventWriter<SpawnPauseMenu>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        if query.iter().count() == 0 {
+            spawn_pause_menu_event_writer.send(SpawnPauseMenu);
+        } else {
+            for entity in query.iter_mut() {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
+    }
+}
+
+fn spawn_level_adjust_cuts_resource(
+    mut remaining_cuts: ResMut<RemainingCuts>,
+
+    mut spawn_level_event_reader: EventReader<SpawnLevel>,
+) {
+    for level in spawn_level_event_reader.iter() {
+        remaining_cuts.remaining = level.number_of_cuts;
+    }
+}
+
+fn adjust_cuts_label(
+    remaining_cuts: ResMut<RemainingCuts>,
+    mut query: Query<&mut Text, With<RemainingCutsComponent>>,
+) {
+    if remaining_cuts.is_changed() {
+        let label = format!("Cuts: {}", remaining_cuts.remaining);
+        for mut text in query.iter_mut() {
+            if let Some(mut section) = text.sections.get_mut(0) {
+                section.value = label.clone();
+            }
+        }
+    }
 }
 
 fn next_level(
     // mut commands: Commands,
     game_levels: ResMut<GameLevels>,
+    mut unlocked_cities: ResMut<UnlockedCities>,
     mut next_level_event_reader: EventReader<NextLevel>,
     mut current_level: ResMut<CurrentLevel>,
     mut won_the_game_event_writer: EventWriter<WonTheGame>,
@@ -238,12 +427,14 @@ fn next_level(
                 }
             }
         }
+        unlocked_cities.cities.push(current_level.clone());
     }
 }
 
 fn previous_level(
     // mut commands: Commands,
     game_levels: ResMut<GameLevels>,
+
     mut previous_level_event_reader: EventReader<PreviousLevel>,
     mut current_level: ResMut<CurrentLevel>,
     mut spawn_level_event_writer: EventWriter<SpawnLevel>,
@@ -298,28 +489,68 @@ fn force_next_level(
     if keyboard_input.just_pressed(KeyCode::Right) {
         next_level_event_writer.send(NextLevel);
     }
-    if keyboard_input.just_pressed(KeyCode::Left) {}
+    if keyboard_input.just_pressed(KeyCode::Left) {
+        previous_level_event_writer.send(PreviousLevel);
+    }
 }
 
 fn next_button_action(
     mut commands: Commands,
     mut interaction_query: Query<
-        (Entity, &mut Visibility, &Interaction, &GameButtonAction),
+        (&Interaction, &GameButtonAction),
         (Changed<Interaction>, With<Button>),
     >,
-
+    mut previous_level_event_writer: EventWriter<PreviousLevel>,
     mut next_level_event_writer: EventWriter<NextLevel>,
+    mut game_state: ResMut<State<GameState>>,
+    game_levels: ResMut<GameLevels>,
+    current_level: Res<CurrentLevel>,
+    mut spawn_level_event_writer: EventWriter<SpawnLevel>,
+    pause_menu_query: Query<Entity, With<PauseMenu>>,
+    next_button_query: Query<Entity, With<NextButtonParent>>,
+    music_controller: Res<crate::menu::MusicController>,
+    audio_sinks: Res<Assets<AudioSink>>,
 ) {
-    for (entity, mut vis, interaction, menu_button_action) in interaction_query.iter_mut() {
+    let mut has_despawned_next_button = false;
+    for (interaction, menu_button_action) in interaction_query.iter_mut() {
         if *interaction == Interaction::Clicked {
             match menu_button_action {
                 // MenuButtonAction::Quit => app_exit_events.send(AppExit),
                 GameButtonAction::GoNext => {
                     next_level_event_writer.send(NextLevel);
-                    commands.entity(entity).insert(super::menu::Inactive);
-                    vis.is_visible = false;
+
+                    // commands.entity(entity).insert(super::menu::Inactive);
+                    // vis.is_visible = false;
                 }
-                _ => {}
+                GameButtonAction::GoBack => {
+                    previous_level_event_writer.send(PreviousLevel);
+                    // commands.entity(entity).insert(super::menu::Inactive);
+                    // vis.is_visible = false;
+                }
+                GameButtonAction::ToMenu => {
+                    game_state.set(GameState::Menu).unwrap();
+                    if let Some(sink) = audio_sinks.get(&music_controller.0) {
+                        sink.play();
+                    }
+                }
+                GameButtonAction::Restart => {
+                    let spawn_level = game_levels.get(&current_level.clone());
+                    spawn_level_event_writer.send(spawn_level);
+                } // _ => {}
+            }
+
+            //
+            //
+            // despawn whole pause menu
+            if let Some(pause_menu_entity) = pause_menu_query.iter().next() {
+                commands.entity(pause_menu_entity).despawn_recursive();
+            }
+
+            if !has_despawned_next_button {
+                for entity in next_button_query.iter() {
+                    commands.entity(entity).despawn_recursive();
+                    has_despawned_next_button = true;
+                }
             }
         }
     }
@@ -329,10 +560,13 @@ fn activate_next_level_button(
     mut commands: Commands,
     // asset_server: Res<AssetServer>,
     mut has_won_event_reader: EventReader<HasWonLevelEvent>,
-    mut go_next_button_query: Query<(Entity, &mut Visibility), (With<Button>)>,
+    mut go_next_button_query: Query<(Entity, &mut Visibility), With<Button>>,
+    mut spawn_next_level_button_event_writer: EventWriter<SpawnNextLevelButton>,
 ) {
     //
-    for _ in has_won_event_reader.iter() {
+    if let Some(_) = has_won_event_reader.iter().next() {
+        spawn_next_level_button_event_writer.send(SpawnNextLevelButton);
+
         for (entity, mut vis) in go_next_button_query.iter_mut() {
             vis.is_visible = true;
             commands.entity(entity).remove::<super::menu::Inactive>();
@@ -340,154 +574,9 @@ fn activate_next_level_button(
     }
 }
 
-fn spawn_next_level_button(mut commands: Commands, asset_server: Res<AssetServer>) {
-    //
-
-    // for (entity, mut vis) in go_next_button_query.iter_mut() {
-    //     vis.is_visible = true;
-    //     commands.entity(entity).remove::<super::menu::Inactive>();
-    // }
-
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-
-    let button_style = Style {
-        size: Size::new(Val::Px(150.0), Val::Px(65.0)),
-        margin: UiRect::all(Val::Px(3.0)),
-        justify_content: JustifyContent::Center,
-        align_items: AlignItems::Center,
-        ..default()
-    };
-
-    let button_text_style = TextStyle {
-        font: font.clone(),
-        font_size: 32.0,
-        color: TEXT_COLOR,
-    };
-
-    commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                margin: UiRect::all(Val::Auto),
-                flex_direction: FlexDirection::ColumnReverse,
-                align_items: AlignItems::FlexEnd,
-                justify_content: JustifyContent::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: UiRect {
-                    right: Val::Px(150.0),
-                    top: Val::Px(50.0),
-                    ..default()
-                },
-                ..default()
-            },
-            color: Color::rgba(0.0, 0.0, 0.0, 0.0).into(),
-            // visibility: Visibility { is_visible: false },
-            computed_visibility: ComputedVisibility::not_visible(),
-            ..default()
-        })
-        .with_children(|parent| {
-            parent
-                .spawn_bundle(ButtonBundle {
-                    style: button_style.clone(),
-                    color: NORMAL_BUTTON.into(),
-                    visibility: Visibility { is_visible: false },
-                    ..default()
-                })
-                .insert(GameButtonAction::GoNext)
-                .insert(crate::menu::Inactive)
-                .with_children(|parent| {
-                    parent.spawn_bundle(TextBundle::from_section(
-                        "Next Level",
-                        button_text_style.clone(),
-                    ));
-                });
-        });
-}
-
 fn game_setup(
-    // mut spawn_poly_event_writer: EventWriter<SpawnPoly>,
-    // mut spawn_target_event_writer: EventWriter<SpawnTarget>,
     mut spawn_level_event_writer: EventWriter<SpawnLevel>,
     game_levels: ResMut<GameLevels>,
 ) {
-    // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-
-    // spawn_level_event_writer.send(SpawnLevel {
-    //     polygon: "004_simplicity_square_parallel".to_string(),
-    //     polygon_multiplier: 1.0,
-    //     target: "004_simplicity_square_parallel".to_string(),
-    //     target_multiplier: 1.1,
-    // });
-
     spawn_level_event_writer.send(game_levels.simplicity[0].clone());
-
-    // spawn_poly_event_writer.send(SpawnPoly {
-    //     polygon: "004_simplicity_square_parallel".to_string(),
-    //     polygon_multiplier: 1.0,
-    // });
-
-    // spawn_target_event_writer.send(SpawnTarget {
-    //     target: "004_simplicity_square_parallel".to_string(),
-    //     target_multiplier: 1.1,
-    // });
-
-    // commands
-    //     // First create a `NodeBundle` for centering what we want to display
-    //     .spawn_bundle(NodeBundle {
-    //         style: Style {
-    //             // This will center the current node
-    //             margin: UiRect::all(Val::Auto),
-    //             // This will display its children in a column, from top to bottom. Unlike
-    //             // in Flexbox, Bevy origin is on bottom left, so the vertical axis is reversed
-    //             flex_direction: FlexDirection::ColumnReverse,
-    //             // `align_items` will align children on the cross axis. Here the main axis is
-    //             // vertical (column), so the cross axis is horizontal. This will center the
-    //             // children
-    //             align_items: AlignItems::Center,
-    //             ..default()
-    //         },
-    //         color: Color::BLACK.into(),
-    //         ..default()
-    //     })
-
-    //     .with_children(|parent| {
-    //         // Display two lines of text, the second one with the current settings
-    //         parent.spawn_bundle(
-    //             TextBundle::from_section(
-    //                 "Will be back to the menu shortly...",
-    //                 TextStyle {
-    //                     font: font.clone(),
-    //                     font_size: 80.0,
-    //                     color: TEXT_COLOR,
-    //                 },
-    //             )
-    //             .with_style(Style {
-    //                 margin: UiRect::all(Val::Px(50.0)),
-    //                 ..default()
-    //             }),
-    //         );
-    //         parent.spawn_bundle(
-    //             TextBundle::from_sections([
-    //                 TextSection::new(
-    //                     format!("quality: {:?}", *display_quality),
-    //                     TextStyle {
-    //                         font: font.clone(),
-    //                         font_size: 60.0,
-    //                         color: Color::BLUE,
-    //                     },
-    //                 ),
-    //                 TextSection::new(
-    //                     " - ",
-    //                     TextStyle {
-    //                         font: font.clone(),
-    //                         font_size: 60.0,
-    //                         color: TEXT_COLOR,
-    //                     },
-    //                 ),
-    //             ])
-    //             .with_style(Style {
-    //                 margin: UiRect::all(Val::Px(50.0)),
-    //                 ..default()
-    //             }),
-    //         );
-    //     });
 }

@@ -1,4 +1,6 @@
-use bevy::{app::AppExit, prelude::*};
+use bevy::audio::AudioSink;
+use bevy::prelude::*;
+
 use shapeshifter_level_maker::util::SpawnLevel;
 
 use super::{despawn_screen, DisplayQuality, GameState, TEXT_COLOR};
@@ -12,6 +14,7 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app
+            // .insert_resource(MenuMusic { handle: None })
             // At start, the menu is not enabled. This will be changed in `menu_setup` when
             // entering the `GameState::Menu` state.
             // Current screen in the menu is handled by an independent state from `GameState`
@@ -150,7 +153,28 @@ fn setting_button<T: Component + PartialEq + Copy>(
     }
 }
 
-fn menu_setup(mut menu_state: ResMut<State<MenuState>>) {
+pub struct MusicController(pub Handle<AudioSink>);
+
+fn menu_setup(
+    mut commands: Commands,
+    mut menu_state: ResMut<State<MenuState>>,
+    asset_server: Res<AssetServer>,
+    // mut menu_music: ResMut<MenuMusic>,
+    audio: Res<Audio>,
+    audio_sinks: Res<Assets<AudioSink>>,
+) {
+    //
+    //
+    // music settings
+    let audio_source_handle = asset_server.load("music/charles_menu.ogg");
+    let handle = audio_sinks.get_handle(
+        audio.play_with_settings(audio_source_handle, bevy::audio::PlaybackSettings::LOOP),
+    );
+    commands.insert_resource(MusicController(handle));
+
+    //
+    //
+    // initialize menu state
     let _ = menu_state.set(MenuState::Main);
 }
 
@@ -163,6 +187,7 @@ fn main_menu_setup(
         polygon: "cat2".to_string(),
         target: "shark1".to_string(),
         target_multiplier: 1.1,
+        number_of_cuts: 1000,
     });
 
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
@@ -467,6 +492,8 @@ fn menu_action(
     // mut app_exit_events: EventWriter<AppExit>,
     mut menu_state: ResMut<State<MenuState>>,
     mut game_state: ResMut<State<GameState>>,
+    music_controller: Res<MusicController>,
+    audio_sinks: Res<Assets<AudioSink>>,
 ) {
     for (interaction, menu_button_action) in &interaction_query {
         if *interaction == Interaction::Clicked {
@@ -475,6 +502,9 @@ fn menu_action(
                 MenuButtonAction::Play => {
                     game_state.set(GameState::Game).unwrap();
                     menu_state.set(MenuState::Disabled).unwrap();
+                    if let Some(sink) = audio_sinks.get(&music_controller.0) {
+                        sink.pause();
+                    }
                 }
                 MenuButtonAction::GoToCity => menu_state.set(MenuState::Settings).unwrap(),
                 MenuButtonAction::SettingsDisplay => {
@@ -483,7 +513,12 @@ fn menu_action(
                 MenuButtonAction::SettingsSound => {
                     menu_state.set(MenuState::SettingsSound).unwrap();
                 }
-                MenuButtonAction::BackToMainMenu => menu_state.set(MenuState::Main).unwrap(),
+                MenuButtonAction::BackToMainMenu => {
+                    if let Some(sink) = audio_sinks.get(&music_controller.0) {
+                        sink.play();
+                    }
+                    menu_state.set(MenuState::Main).unwrap();
+                }
                 MenuButtonAction::BackToSettings => {
                     menu_state.set(MenuState::Settings).unwrap();
                 }

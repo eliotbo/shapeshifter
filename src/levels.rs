@@ -1,4 +1,5 @@
 // use bevy::prelude::*;
+use super::game::CurrentLevel;
 use shapeshifter_level_maker::util::SpawnLevel;
 
 pub struct GameLevels {
@@ -8,6 +9,17 @@ pub struct GameLevels {
     pub complexity: Vec<SpawnLevel>,
 }
 
+impl GameLevels {
+    pub fn get(&self, level: &CurrentLevel) -> SpawnLevel {
+        match level {
+            CurrentLevel::Simplicity(idx) => self.simplicity[*idx].clone(),
+            CurrentLevel::Convexity(idx) => self.convexity[*idx].clone(),
+            CurrentLevel::Perplexity(idx) => self.perplexity[*idx].clone(),
+            CurrentLevel::Complexity(idx) => self.complexity[*idx].clone(),
+        }
+    }
+}
+
 // 004_simplicity_square_cut
 
 impl Default for GameLevels {
@@ -15,10 +27,14 @@ impl Default for GameLevels {
         let simplicity = vec![
             //
             //
-            SpawnLevel::new2("002_simplicity_square", "002_simplicity_square"),
+            SpawnLevel::new3("002_simplicity_square", "002_simplicity_square", 0),
             //
             //
-            SpawnLevel::new2("003_simplicity_square_oblique", "004_simplicity_rectangle"),
+            SpawnLevel::new3(
+                "003_simplicity_square_oblique",
+                "004_simplicity_rectangle",
+                0,
+            ),
             //
             //
             SpawnLevel::new2("004_simplicity_square_cut", "005_simplicity_cactus"),

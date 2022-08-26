@@ -57,6 +57,7 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_event::<SpawnTarget>()
             .add_event::<SpawnLevel>()
             .add_event::<HasWonLevelEvent>()
+            .add_event::<PerformedCut>()
             .insert_resource(Globals::default())
             .insert_resource(Cursor::default())
             .insert_resource(LoadedPolygonsRaw::default())
