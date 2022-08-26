@@ -32,6 +32,7 @@ pub enum Action {
     MaybeRotatePoly,
     RevertToInit,
     SaveOneDialog,
+    SaveOneSent { name: String, pts: Vec<Vec2> },
     LoadDialog,
     QuickLoad { maybe_name: Option<String> },
     QuickLoadAll, // no bindings yet
@@ -95,18 +96,18 @@ pub fn record_mouse_events_system(
 
         let screen_position = cursor_in_pixels - window_size / 2.0;
 
-        let cam_transform = cam_transform_query.iter().next().unwrap();
+        if let Some(cam_transform) = cam_transform_query.iter().next() {
+            // this variable currently has no effect
+            let scale = 1.0;
 
-        // this variable currently has no effect
-        let scale = 1.0;
+            let cursor_vec4: Vec4 = cam_transform.compute_matrix()
+                * screen_position.extend(0.0).extend(1.0 / (scale))
+                * scale;
 
-        let cursor_vec4: Vec4 = cam_transform.compute_matrix()
-            * screen_position.extend(0.0).extend(1.0 / (scale))
-            * scale;
-
-        let cursor_pos = Vec2::new(cursor_vec4.x, cursor_vec4.y);
-        cursor_res.position = cursor_pos;
-        cursor_res.pos_relative_to_click = cursor_res.position - cursor_res.last_click_position;
+            let cursor_pos = Vec2::new(cursor_vec4.x, cursor_vec4.y);
+            cursor_res.position = cursor_pos;
+            cursor_res.pos_relative_to_click = cursor_res.position - cursor_res.last_click_position;
+        }
     }
 
     if mouse_button_input.just_pressed(MouseButton::Left) {
@@ -313,7 +314,6 @@ pub fn direct_action(
         //
         // translation (q is for moving points in level-making)
         (false, false, false) if mouse_just_pressed && !pressing_q => {
-            info!("translation");
             action_event.send(Action::MaybeTranslatePoly)
         }
         //
@@ -321,7 +321,6 @@ pub fn direct_action(
         //
         // rotation
         (false, false, false) if mouse_right_just_pressed && !pressing_q => {
-            info!("rotation");
             action_event.send(Action::MaybeRotatePoly)
         }
         _ => {}
@@ -330,7 +329,7 @@ pub fn direct_action(
 
 pub fn direct_release_action(
     mut commands: Commands,
-    segment_query: Query<Entity, With<MakingSegment>>,
+    // segment_query: Query<Entity, With<MakingSegment>>,
     path_point_query: Query<Entity, With<MovingPathPoint>>,
     mouse_button_input: Res<Input<MouseButton>>,
     // mut start_polygon: EventWriter<StartMakingPolygon>,
@@ -347,7 +346,7 @@ pub fn direct_release_action(
 
         for entity in path_point_query.iter() {
             commands.entity(entity).remove::<MovingPathPoint>();
-            info!("removing MovingPathPoint");
+            // info!("removing MovingPathPoint");
         }
     }
 }

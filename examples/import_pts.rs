@@ -1,13 +1,14 @@
-// pub mod cam;
-// use cam::*;
-
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 
-use shapeshifter_level_maker::{input::Action, util::MeshMeta, ShapeshifterLevelMakerPlugin};
+use shapeshifter_level_maker::{
+    input::Action,
+    material::FillMesh2dMaterial,
+    util::{Globals, LoadedPolygonsRaw, MeshMeta, SpawnPoly, SpawnTarget},
+    ShapeshifterLevelMakerPlugin,
+};
 
 use std::collections::HashMap;
-use std::path::*;
 
 fn main() {
     App::new()
@@ -26,12 +27,11 @@ fn main() {
             map: HashMap::new(),
         })
         .add_plugins(DefaultPlugins)
-        // .add_startup_system(setup)
-        // .add_startup_system(camera_setup)
         .add_startup_system(setup)
         .add_startup_system(read_all_pts)
+        //
+        .add_system(setup_polygons)
         .add_system(build_ptsmap)
-        // .add_plugin(CamPlugin)
         .add_plugin(ShapeshifterLevelMakerPlugin)
         .run();
 }
@@ -39,7 +39,7 @@ fn main() {
 
 #[derive(Debug)]
 pub struct PTS {
-    pub pts: Vec<Vec2>,
+    pub points: Vec<Vec2>,
     pub name: String,
     pub area: f32,
     pub height: f32,
@@ -57,6 +57,7 @@ pub fn build_ptsmap(
     mut pts_map: ResMut<PTSMap>,
     query: Query<&MeshMeta>,
     keyboard_input: Res<Input<KeyCode>>,
+    mut action_event_writer: EventWriter<Action>,
 ) {
     if keyboard_input.just_pressed(KeyCode::M) {
         let mut map = HashMap::new();
@@ -68,7 +69,7 @@ pub fn build_ptsmap(
             let width = bb.max.x - bb.min.x;
 
             let pts = PTS {
-                pts: mesh_meta.points.clone(),
+                points: mesh_meta.points.clone(),
                 name: mesh_meta.name.clone(),
                 area: area.abs(),
                 height: height,
@@ -87,54 +88,73 @@ pub fn build_ptsmap(
                 .map(|pts| (pts.name.clone(), pts.area, pts.height, pts.width))
                 .collect::<Vec<_>>()
         );
+
+        for (name, pts) in pts_map.map.iter_mut() {
+            // normalize the area
+            let area_sqrt = pts.area.sqrt();
+            // let new_points: Vec<Vec2> = pts.points.iter().map(|pt| *pt / area_sqrt).collect();
+            let mut new_points = vec![];
+
+            for point in pts.points.iter() {
+                // normalize such that the new area is 100000
+                new_points.push(point.clone() / area_sqrt * 50000.0_f32.sqrt());
+            }
+
+            action_event_writer.send(Action::SaveOneSent {
+                name: name.clone(),
+                pts: new_points,
+            });
+        }
     }
 }
 
-pub fn read_all_pts(mut action_event_writer: EventWriter<Action>) {
+// imports all the polygons in the same level using the QuickLoad event
+pub fn read_all_pts(mut commands: Commands, mut action_event_writer: EventWriter<Action>) {
     let mut save_prepath = std::env::current_dir().unwrap();
     save_prepath.push("assets/meshes/");
     info!("save_prepath: {:?}", save_prepath);
 
-    for (idx, entry) in std::fs::read_dir(save_prepath).unwrap().enumerate() {
-        // if idx < 15 {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        let path_str = path.to_str().unwrap();
-        if path_str.ends_with(".pts") {
-            // let save_mesh_meta = read_save_mesh_meta(path_str);
-            let name_of_file = path_str.split("/").last().unwrap();
-            let name_of_file = name_of_file.split(".").next().unwrap();
-            println!("{:?}", name_of_file);
+    // for (idx, entry) in std::fs::read_dir(save_prepath).unwrap().enumerate() {
+    //     // if idx < 2 {
+    //     let entry = entry.unwrap();
+    //     let path = entry.path();
+    //     let path_str = path.to_str().unwrap();
+    //     if path_str.ends_with(".pts") {
+    //         // let save_mesh_meta = read_save_mesh_meta(path_str);
+    //         let name_of_file = path_str.split("/").last().unwrap();
+    //         let name_of_file = name_of_file.split(".").next().unwrap();
+    //         println!("{:?}", name_of_file);
 
-            action_event_writer.send(Action::QuickLoad {
-                maybe_name: Some(name_of_file.to_string()),
-            });
-        }
-        // }
-    }
+    //         action_event_writer.send(Action::QuickLoad {
+    //             maybe_name: Some(name_of_file.to_string()),
+    //         });
+    //     }
+    //     // }
+    // }
 }
 
-fn setup(
-    mut commands: Commands,
-    mut action_event_writer: EventWriter<Action>,
-    // mut meshes: ResMut<Assets<Mesh>>,
-    // mut materials: ResMut<Assets<ColorMaterial>>,
-) {
-    // insert 2d Camera
+fn setup(mut commands: Commands) {
     commands.spawn_bundle(Camera2dBundle::default());
+}
 
-    action_event_writer.send(Action::QuickLoad {
-        maybe_name: Some("004_simplicity_square_parallel".to_string()),
-    });
-    action_event_writer.send(Action::QuickLoadTarget {
-        maybe_name: Some("004_simplicity_square_parallel".to_string()),
-    });
-    action_event_writer.send(Action::ToggleGrid); //
+// only runs after load_poly_wasm(..) is done
+fn setup_polygons(
+    loaded_polygons_raw: ResMut<LoadedPolygonsRaw>,
+    mut spawn_poly_event_writer: EventWriter<SpawnPoly>,
+    mut spawn_target_event_writer: EventWriter<SpawnTarget>,
+) {
+    //
+    //
+    //
+    if loaded_polygons_raw.is_changed() {
+        spawn_poly_event_writer.send(SpawnPoly {
+            polygon: "004_simplicity_square_parallel".to_string(),
+            polygon_multiplier: 1.0,
+        });
 
-    // commands.spawn_bundle(MaterialMesh2dBundle {
-    //     mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
-    //     transform: Transform::default().with_scale(Vec3::splat(128.)),
-    //     material: materials.add(ColorMaterial::from(Color::PURPLE)),
-    //     ..default()
-    // });
+        spawn_target_event_writer.send(SpawnTarget {
+            target: "004_simplicity_square_parallel".to_string(),
+            target_multiplier: 1.1,
+        });
+    }
 }

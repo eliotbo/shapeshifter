@@ -42,9 +42,6 @@ pub struct StartMakingSegment {
 pub struct PolySegmentComponent;
 
 #[derive(Component)]
-pub struct Polygon;
-
-#[derive(Component)]
 pub struct MakingSegment {
     pub start: Point,
 }
@@ -96,7 +93,7 @@ pub fn delete_all(
         )>,
     >,
     mut action_event_reader: EventReader<Action>,
-    target_query: Query<Entity, With<crate::target::Target>>,
+    target_query: Query<Entity, With<Target>>,
 ) {
     if let Some(Action::DeleteAll) = action_event_reader.iter().next() {
         for entity in query.iter() {
@@ -149,7 +146,7 @@ pub fn add_point_to_poly(
             // find closest path segment to the cursor pos
             //
             let mut min_distance = f32::MAX;
-            let mut closest_segment = 111111111111111111;
+            let mut closest_segment = 11111111;
 
             let (transformed_path, _angle) = transform_path(&mesh_meta.path, transform);
 
@@ -608,7 +605,7 @@ pub fn hover_path_point(
 }
 
 pub fn move_path_point(
-    mut commands: Commands,
+    // mut commands: Commands,
     mut polygon_query: Query<(
         Entity,
         &mut Transform,
@@ -619,9 +616,9 @@ pub fn move_path_point(
     // mut path_point_query: Query<(Entity, &PathPoint)>,
     cursor: Res<Cursor>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    // mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    for (entity, mut transform, mut mesh_handle, mut mesh_meta, moving_path_point) in
+    for (_entity, mut transform, mut mesh_handle, mut mesh_meta, moving_path_point) in
         polygon_query.iter_mut()
     {
         // let mut path = *mesh_meta.path;

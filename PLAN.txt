@@ -1,0 +1,110 @@
+PLAN
+
+TODO:
+
+
+
+0) load polygons with include_str!
+
+1) a view for selecting a custom match and start a new level (with struct for the match
+    poly_name, target_name, target_multiplier)
+
+2) tetris like arrows (holding shift make edges stick to each other)
+3) make Convexity section 
+4) make tutorial section (Simplicity)
+5) match pairs of animal polygons and try to map them to each other
+
+
+
+GIT commands
+
+    create new repo online from local repo
+        gh repo create
+        git push --set-upstream origin main
+
+
+
+WASM commands?
+
+cargo build --release --target wasm32-unknown-unknown
+wasm-bindgen --out-name wasm_shapeshift \
+  --out-dir wasm/target \
+  --target web target/wasm32-unknown-unknown/release/shapeshifter.wasm
+
+wasm-bindgen --out-name wasm_shapeshift   --out-dir wasm/target   --target web target/wasm32-unknown-unknown/release/shapeshifter.wasm
+
+basic-http-server
+
+
+
+Generate polygon importa with include_str!:
+
+    gen_all_include_str(..)
+
+
+FINAL VERSION
+
+    0) remove grid
+    1) remove most of polygon making code 
+    
+
+
+
+IDEAs
+
+
+
+    Each section has its own theme
+    0) Wood
+    1) Metal
+    2) Stone 
+    3) Glass
+
+    Level:
+    look at origami
+    chocolate bar
+
+
+
+POLISHING
+
+    yellow poly outside of target, green inside
+
+    on startup, show splash and cut the polygon letters
+
+    Make a better rounded look: at every point, but a bezier curve to round off the edges
+    ----limit the area of a new polygon after a cut (cannot make a new polygon that is
+        too small)
+
+    add shadows to the edges of the polygons
+
+    make neuromorphic design for shapeshifted area. Send position of polygon points to gpu,
+    and use a polygon SDF. Make Corners rounded.
+            Make shaders for each theme.
+            Make contours for each theme.
+
+    System that helps player to place polygon as tightly as possible inside the target
+            player presses an arrow key and the polygon translates as far as possible in that direction
+            ctrl plus arrow rotates as much as possible
+
+    Upon win, extend the target area so that it becomes the whole play area
+
+    When cutting, if two points are too close to each other, merge them
+
+    rounded edges ()
+
+    make visuals bigger than model by epsilon (leeway for collisions)
+
+    remove the pull back to previous position when colliding with target 
+        should just play sound and bounce horizontally quickly
+
+    Wood texture for polygons
+
+    optimization: import part of lyon (algorithms, path)
+
+
+
+
+WASM
+
+    Remove inspector from wasm build

@@ -1,7 +1,9 @@
+use crate::material::FillMesh2dMaterial;
+
 use bevy::{
     prelude::*,
     render::{mesh::Indices, render_resource::PrimitiveTopology},
-    // sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
 };
 
 use lyon::algorithms::hit_test::*;
@@ -15,6 +17,12 @@ use lyon::tessellation::{FillOptions, FillTessellator, VertexBuffers};
 
 use serde::Deserialize;
 use serde::Serialize;
+
+use std::collections::HashMap;
+
+use rand::{thread_rng, Rng};
+
+const TARGET_MULT: f32 = 1.1;
 
 pub struct Globals {
     pub polygon_segment_color: Color,
@@ -65,6 +73,27 @@ pub struct EntityZ {
     pub z: f32,
 }
 
+pub struct CurrentLevel {
+    pub polygon: String,
+    pub target: String,
+    pub polygon_multiplier: f32,
+    pub target_multiplier: f32,
+}
+
+impl Default for CurrentLevel {
+    fn default() -> Self {
+        Self {
+            polygon: "004_simplicity_square_parallel".to_string(),
+            target: "004_simplicity_square_parallel".to_string(),
+            polygon_multiplier: 1.0,
+            target_multiplier: 1.1,
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct Polygon;
+
 #[derive(Component)]
 pub struct PathPoint;
 
@@ -95,6 +124,40 @@ pub struct Rotating {
 pub struct Translating {
     pub starting_pos: Vec2,
 }
+
+#[derive(Component)]
+pub struct Target {
+    pub path: Path,
+}
+
+pub struct SpawnPoly {
+    pub polygon: String,
+    pub polygon_multiplier: f32,
+}
+
+pub struct SpawnTarget {
+    pub target: String,
+    pub target_multiplier: f32,
+}
+
+#[derive(Clone)]
+pub struct SpawnLevel {
+    pub polygon: String,
+    pub target: String,
+    pub target_multiplier: f32,
+}
+
+impl SpawnLevel {
+    pub fn new2(polygon: &str, target: &str) -> Self {
+        Self {
+            polygon: polygon.to_string(),
+            target: target.to_string(),
+            target_multiplier: TARGET_MULT,
+        }
+    }
+}
+
+pub struct HasWonLevelEvent;
 
 pub struct TestWinEvent;
 
@@ -250,12 +313,53 @@ impl MeshMeta {
     }
 }
 
+#[derive(Default)]
+pub struct LoadedPolygonsRaw {
+    pub polygons: HashMap<String, SaveMeshMeta2>,
+}
+
+#[derive(Default)]
+pub struct LoadedPolyPath {
+    pub maybe_path: Option<String>,
+}
+
+#[derive(Default)]
+pub struct LoadedTargetPath {
+    pub maybe_path: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SaveMeshMeta2 {
+    pub name: String,
+    pub points: Vec<Vec2>,
+    pub translation: Vec2,
+    pub rotation: f32,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct SaveMeshMeta {
     pub points: Vec<Vec2>,
     pub translation: Vec2,
     pub rotation: f32,
 }
+
+// impl Into<MeshMeta> for &SaveMeshMeta2 {
+//     fn into(self) -> MeshMeta {
+//         let mut rng = thread_rng();
+//         let id = rng.gen::<u64>();
+
+//         let built_path = build_path_from_points(&self.points);
+
+//         MeshMeta {
+//             id,
+//             path: built_path,
+//             points: self.points.clone(),
+//             previous_transform: Transform::default(),
+//             is_intersecting: false,
+//             name: self.name.clone(),
+//         }
+//     }
+// }
 
 // impl From<&MeshMeta> for SaveMeshMeta {
 //     fn from(mesh_meta: &MeshMeta) -> Self {
@@ -501,4 +605,275 @@ pub fn make_square() -> (Path, Vec<Vec2>) {
     points.push(Vec2::new(0.0, 100.0));
 
     (built_path, points)
+}
+
+pub fn build_path_from_points(points: &Vec<Vec2>, mult: f32) -> Path {
+    let mut path = Path::builder();
+    path.begin(point(points[0][0] * mult, points[0][1] * mult));
+    for v in points.iter().skip(1) {
+        path.line_to(point(v.x * mult, v.y * mult));
+    }
+    path.close();
+    path.build()
+}
+
+// spawns a polygon from a MeshMeta
+pub fn spawn_poly(
+    mut commands: Commands,
+    poly_raw_map: Res<LoadedPolygonsRaw>,
+    query: Query<Entity, With<Polygon>>,
+    mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut spawn_poly_event_reader: EventReader<SpawnPoly>,
+    mut spawn_level_event_reader: EventReader<SpawnLevel>,
+    globals: Res<Globals>,
+) {
+    // let (mesh, center_of_mass) = make_poly(mesh_meta, position);
+
+    let mut poly_vec: Vec<SpawnPoly> = Vec::new();
+
+    for SpawnPoly {
+        polygon,
+        polygon_multiplier,
+    } in spawn_poly_event_reader.iter()
+    {
+        poly_vec.push(SpawnPoly {
+            polygon: polygon.clone(),
+            polygon_multiplier: polygon_multiplier.clone(),
+        });
+    }
+
+    for SpawnLevel {
+        polygon,
+        target: _,
+        target_multiplier: _,
+    } in spawn_level_event_reader.iter()
+    {
+        poly_vec.push(SpawnPoly {
+            polygon: polygon.clone(),
+            polygon_multiplier: 1.0,
+        });
+    }
+
+    if poly_vec.len() > 0 {
+        for entity in query.iter() {
+            commands.entity(entity).despawn();
+        }
+    }
+
+    for SpawnPoly {
+        polygon,
+        polygon_multiplier,
+    } in poly_vec.iter()
+    {
+        if let Some(save_format_mesh_meta) = poly_raw_map.polygons.get(polygon) {
+            // let mesh_meta: MeshMeta = save_format_mesh_meta.into();
+
+            let points = shift_to_center_of_mass(&save_format_mesh_meta.points);
+
+            let mut rng = thread_rng();
+            let id = rng.gen::<u64>();
+
+            let built_path = build_path_from_points(&points, *polygon_multiplier);
+
+            let mesh_meta = MeshMeta {
+                id,
+                path: built_path,
+                points: points.clone(),
+                previous_transform: Transform::default(),
+                is_intersecting: false,
+                name: save_format_mesh_meta.name.clone(),
+            };
+
+            let (mesh, center_of_mass) = make_polygon_mesh(&mesh_meta.path, true);
+
+            let mat_handle = fill_materials.add(FillMesh2dMaterial {
+                color: globals.polygon_color.into(),
+                show_com: 0.0,
+                selected: 0.0,
+                is_intersecting: 0.0,
+            });
+
+            let path_translation =
+                lyon::geom::Translation::new(-center_of_mass.x, -center_of_mass.y);
+            let transformed_path = mesh_meta.path.transformed(&path_translation);
+
+            let mut rng = thread_rng();
+            let id = rng.gen::<u64>();
+            let z = rng.gen::<f32>();
+
+            let transform = Transform::from_translation(Vec2::new(-300.0, 0.0).extend(z));
+
+            let mesh_handle = meshes.add(mesh);
+
+            //
+            //
+            //
+            // spawn the polygon
+            let _entity = commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: Mesh2dHandle(mesh_handle.clone()),
+                    material: mat_handle,
+                    transform,
+                    ..default()
+                })
+                .insert(Polygon)
+                .insert(MeshMeta {
+                    id,
+                    path: transformed_path.clone(),
+                    points: mesh_meta.points, //TODO
+                    previous_transform: transform,
+                    is_intersecting: false,
+                    name: mesh_meta.name,
+                })
+                .id();
+
+            let ghost_mat_handle = fill_materials.add(FillMesh2dMaterial {
+                // usually globals.ghost_color, but the list of arguments in spawn_poly(..)
+                // is becoming too long
+                color: globals.ghost_color.into(),
+
+                show_com: 0.0,
+                selected: 0.0,
+                is_intersecting: 0.0,
+            });
+
+            let mut ghost_transform = transform;
+            ghost_transform.translation.z = -10.0;
+
+            let _ghost_entity = commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: Mesh2dHandle(mesh_handle.clone()),
+                    material: ghost_mat_handle,
+                    transform: ghost_transform,
+                    ..default()
+                })
+                .insert(Ghost)
+                .id();
+        }
+    }
+}
+
+//
+//
+//
+// spawns a target from a MeshMeta
+pub fn spawn_target(
+    mut commands: Commands,
+    poly_raw_map: Res<LoadedPolygonsRaw>,
+    query: Query<Entity, With<Target>>,
+    mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut spawn_target_event_reader: EventReader<SpawnTarget>,
+    mut spawn_level_event_reader: EventReader<SpawnLevel>,
+    globals: Res<Globals>,
+) {
+    // let (mesh, center_of_mass) = make_poly(mesh_meta, position);
+    let mut target_vec: Vec<SpawnTarget> = Vec::new();
+
+    for SpawnTarget {
+        target,
+        target_multiplier,
+    } in spawn_target_event_reader.iter()
+    {
+        target_vec.push(SpawnTarget {
+            target: target.clone(),
+            target_multiplier: target_multiplier.clone(),
+        });
+    }
+
+    for SpawnLevel {
+        polygon: _,
+        target,
+        target_multiplier,
+    } in spawn_level_event_reader.iter()
+    {
+        target_vec.push(SpawnTarget {
+            target: target.clone(),
+            target_multiplier: target_multiplier.clone(),
+        });
+    }
+
+    if target_vec.len() > 0 {
+        for entity in query.iter() {
+            commands.entity(entity).despawn();
+        }
+    }
+
+    for SpawnTarget {
+        target,
+        target_multiplier,
+    } in target_vec.iter()
+    {
+        // for SpawnTarget {
+        //     target,
+        //     target_multiplier,
+        // } in spawn_poly_event_reader.iter()
+
+        // {
+        if let Some(save_format_mesh_meta) = poly_raw_map.polygons.get(target) {
+            // let mesh_meta: MeshMeta = save_format_mesh_meta.into();
+
+            let points = shift_to_center_of_mass(&save_format_mesh_meta.points);
+
+            // let mut rng = thread_rng();
+            // let id = rng.gen::<u64>();
+
+            let built_path = build_path_from_points(&points, *target_multiplier);
+
+            // let mesh_meta = MeshMeta {
+            //     id,
+            //     path: built_path,
+            //     points: points.clone(),
+            //     previous_transform: Transform::default(),
+            //     is_intersecting: false,
+            //     name: save_format_mesh_meta.name.clone(),
+            // };
+
+            let (mesh, _center_of_mass) = make_polygon_mesh(&built_path, false);
+
+            let mat_handle = fill_materials.add(FillMesh2dMaterial {
+                color: globals.target_color.into(),
+                show_com: 0.0,
+                selected: 0.0,
+                is_intersecting: 0.0,
+            });
+
+            // let path_translation =
+            //     lyon::geom::Translation::new(-center_of_mass.x, -center_of_mass.y);
+            // let transformed_path = mesh_meta.path.transformed(&path_translation);
+
+            // let mut rng = thread_rng();
+            // let id = rng.gen::<u64>();
+            // let z = rng.gen::<f32>();
+
+            let transform = Transform::from_translation(Vec2::new(300.0, 0.0).extend(0.0));
+
+            let mesh_handle = meshes.add(mesh);
+
+            //
+            //
+            //
+            // spawn the polygon
+            let _entity = commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: Mesh2dHandle(mesh_handle.clone()),
+                    material: mat_handle,
+                    transform,
+                    ..default()
+                })
+                .insert(Target {
+                    path: built_path.clone(),
+                })
+                // .insert(MeshMeta {
+                //     id,
+                //     path: transformed_path.clone(),
+                //     points: mesh_meta.points, //TODO
+                //     previous_transform: transform,
+                //     is_intersecting: false,
+                //     name: mesh_meta.name,
+                // })
+                .id();
+        }
+    }
 }

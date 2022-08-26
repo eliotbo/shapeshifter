@@ -5,7 +5,6 @@ use bevy::{
 
 use crate::input::Action;
 use crate::material::FillMesh2dMaterial;
-use crate::poly::Polygon;
 use crate::target::*;
 use crate::util::*;
 
@@ -22,16 +21,6 @@ use lyon::tessellation::path::{builder::NoAttributes, path::BuilderImpl, Path};
 pub struct Load(pub String);
 pub struct LoadTarget(pub String);
 
-#[derive(Default)]
-pub struct LoadedPolyPath {
-    pub maybe_path: Option<String>,
-}
-
-#[derive(Default)]
-pub struct LoadedTargetPath {
-    pub maybe_path: Option<String>,
-}
-
 pub struct LoadPlugin;
 
 impl Plugin for LoadPlugin {
@@ -42,114 +31,115 @@ impl Plugin for LoadPlugin {
             .add_event::<LoadTarget>()
             .add_system(quick_load_all_mesh)
             .add_system(quick_load)
-            .add_system(load_target)
+            // .add_system(load_target)
             .add_system(load_mesh)
-            .add_system(quick_load_target);
+            // .add_system(quick_load_target)
+            ;
     }
 }
 
-// opens file dialog
-pub fn load_target(
-    mut action_event_reader: EventReader<Action>,
-    mut loaded_target_event: EventWriter<LoadedTarget>,
-    mut loaded_path: ResMut<LoadedTargetPath>,
-) {
-    if let Some(Action::LoadTarget) = action_event_reader.iter().next() {
-        info!("load target");
-        let mut save_prepath = std::env::current_dir().unwrap();
-        save_prepath.push("assets/meshes/targets/");
+// // opens file dialog
+// pub fn load_target(
+//     mut action_event_reader: EventReader<Action>,
+//     mut loaded_target_event: EventWriter<LoadedTarget>,
+//     mut loaded_path: ResMut<LoadedTargetPath>,
+// ) {
+//     if let Some(Action::LoadTarget) = action_event_reader.iter().next() {
+//         info!("load target");
+//         let mut save_prepath = std::env::current_dir().unwrap();
+//         save_prepath.push("assets/meshes/targets/");
 
-        if let Some(chosen_path) = rfd::FileDialog::new()
-            .set_directory(&save_prepath)
-            .pick_file()
-        {
-            let file_name = chosen_path.file_name().unwrap().to_str().unwrap();
-            loaded_path.maybe_path = Some(file_name.to_owned());
-            //
-            let mut file = std::fs::File::open(chosen_path).unwrap();
-            let mut contents = String::new();
-            file.read_to_string(&mut contents).unwrap();
-            let loaded_mesh_params: SaveMeshMeta = serde_json::from_str(&contents).unwrap();
-            loaded_target_event.send(LoadedTarget {
-                save_mesh_meta: loaded_mesh_params,
-            });
-        }
-    }
-}
+//         if let Some(chosen_path) = rfd::FileDialog::new()
+//             .set_directory(&save_prepath)
+//             .pick_file()
+//         {
+//             let file_name = chosen_path.file_name().unwrap().to_str().unwrap();
+//             loaded_path.maybe_path = Some(file_name.to_owned());
+//             //
+//             let mut file = std::fs::File::open(chosen_path).unwrap();
+//             let mut contents = String::new();
+//             file.read_to_string(&mut contents).unwrap();
+//             let loaded_mesh_params: SaveMeshMeta = serde_json::from_str(&contents).unwrap();
+//             loaded_target_event.send(LoadedTarget {
+//                 save_mesh_meta: loaded_mesh_params,
+//             });
+//         }
+//     }
+// }
 
-// always loads my_target
-pub fn quick_load_target(
-    mut loaded_target_event: EventWriter<LoadedTarget>,
-    mut action_event_reader: EventReader<Action>,
-    mut loaded_target_path: ResMut<LoadedTargetPath>,
-    mut load_target_event_reader: EventReader<LoadTarget>,
-) {
-    // //
-    // //
-    // let mut maybe_file_name: Option<String> = None;
-    // let mut do_load = false;
+// // always loads my_target
+// pub fn quick_load_target(
+//     mut loaded_target_event: EventWriter<LoadedTarget>,
+//     mut action_event_reader: EventReader<Action>,
+//     mut loaded_target_path: ResMut<LoadedTargetPath>,
+//     mut load_target_event_reader: EventReader<LoadTarget>,
+// ) {
+//     // //
+//     // //
+//     // let mut maybe_file_name: Option<String> = None;
+//     // let mut do_load = false;
 
-    // match action_event_reader.iter().next() {
-    //     Some(Action::QuickLoadTarget {
-    //         maybe_name: Some(name),
-    //     }) => {
-    //         maybe_file_name = Some(name.to_owned());
-    //         do_load = true;
-    //     }
-    //     Some(Action::QuickLoadTarget { maybe_name: None }) => {
-    //         do_load = true;
-    //     }
-    //     _ => {}
-    // };
+//     // match action_event_reader.iter().next() {
+//     //     Some(Action::QuickLoadTarget {
+//     //         maybe_name: Some(name),
+//     //     }) => {
+//     //         maybe_file_name = Some(name.to_owned());
+//     //         do_load = true;
+//     //     }
+//     //     Some(Action::QuickLoadTarget { maybe_name: None }) => {
+//     //         do_load = true;
+//     //     }
+//     //     _ => {}
+//     // };
 
-    // for load in load_target_event_reader.iter() {
-    //     // load_names.push(load.0.clone());
-    //     maybe_file_name = Some(load.0.clone());
-    //     do_load = true;
-    // }
+//     // for load in load_target_event_reader.iter() {
+//     //     // load_names.push(load.0.clone());
+//     //     maybe_file_name = Some(load.0.clone());
+//     //     do_load = true;
+//     // }
 
-    let mut maybe_file_name_vec: Vec<String> = vec![];
+//     let mut maybe_file_name_vec: Vec<String> = vec![];
 
-    for action in action_event_reader.iter() {
-        match action {
-            Action::QuickLoadTarget {
-                maybe_name: Some(name),
-            } => {
-                maybe_file_name_vec.push(name.to_owned());
-            }
+//     for action in action_event_reader.iter() {
+//         match action {
+//             Action::QuickLoadTarget {
+//                 maybe_name: Some(name),
+//             } => {
+//                 maybe_file_name_vec.push(name.to_owned());
+//             }
 
-            _ => {}
-        };
-    }
+//             _ => {}
+//         };
+//     }
 
-    for maybe_file_name in maybe_file_name_vec {
-        //
-        //
-        // if let Some(Action::QuickLoadTarget { maybe_name }) = action_event_reader.iter().next() {
-        // if do_load {
-        let mut save_path = std::env::current_dir().unwrap();
-        save_path.push("assets/meshes/");
-        //
-        //
-        // load TARGET
-        // let file_name = if let Some(name) = maybe_file_name {
-        //     name.to_owned()
-        // } else {
-        //     "001_simplicity_square".to_owned()
-        // };
+//     for maybe_file_name in maybe_file_name_vec {
+//         //
+//         //
+//         // if let Some(Action::QuickLoadTarget { maybe_name }) = action_event_reader.iter().next() {
+//         // if do_load {
+//         let mut save_path = std::env::current_dir().unwrap();
+//         save_path.push("assets/meshes/");
+//         //
+//         //
+//         // load TARGET
+//         // let file_name = if let Some(name) = maybe_file_name {
+//         //     name.to_owned()
+//         // } else {
+//         //     "001_simplicity_square".to_owned()
+//         // };
 
-        loaded_target_path.maybe_path = Some(maybe_file_name.clone());
-        save_path.push(maybe_file_name + ".pts");
+//         loaded_target_path.maybe_path = Some(maybe_file_name.clone());
+//         save_path.push(maybe_file_name + ".pts");
 
-        let mut file = std::fs::File::open(save_path).unwrap();
-        let mut contents = String::new();
-        file.read_to_string(&mut contents).unwrap();
-        let loaded_mesh_params: SaveMeshMeta = serde_json::from_str(&contents).unwrap();
-        loaded_target_event.send(LoadedTarget {
-            save_mesh_meta: loaded_mesh_params,
-        });
-    }
-}
+//         let mut file = std::fs::File::open(save_path).unwrap();
+//         let mut contents = String::new();
+//         file.read_to_string(&mut contents).unwrap();
+//         let loaded_mesh_params: SaveMeshMeta = serde_json::from_str(&contents).unwrap();
+//         loaded_target_event.send(LoadedTarget {
+//             save_mesh_meta: loaded_mesh_params,
+//         });
+//     }
+// }
 
 pub fn quick_load(
     mut commands: Commands,
@@ -222,20 +212,22 @@ pub fn quick_load(
             is_intersecting: 0.0,
         });
 
-        let mut path: NoAttributes<BuilderImpl> = Path::builder();
+        // let mut path: NoAttributes<BuilderImpl> = Path::builder();
 
-        for (idx, pos) in points.iter().enumerate() {
-            //
-            if idx == 0 {
-                path.begin(Point::new(pos.x, pos.y));
-            } else {
-                path.line_to(Point::new(pos.x, pos.y));
-            };
-        }
+        // for (idx, pos) in points.iter().enumerate() {
+        //     //
+        //     if idx == 0 {
+        //         path.begin(Point::new(pos.x, pos.y));
+        //     } else {
+        //         path.line_to(Point::new(pos.x, pos.y));
+        //     };
+        // }
 
-        path.close();
+        // path.close();
 
-        let built_path: Path = path.clone().build();
+        // let built_path: Path = path.clone().build();
+
+        let built_path = build_path_from_points(&points, 1.0);
 
         let (mesh, center_of_mass) = make_polygon_mesh(&built_path, true);
 
@@ -533,20 +525,22 @@ pub fn load_mesh(
             //
             // build the polygon
             //
-            let mut path: NoAttributes<BuilderImpl> = Path::builder();
+            // let mut path: NoAttributes<BuilderImpl> = Path::builder();
 
-            for (idx, pos) in loaded_mesh_params.points.iter().enumerate() {
-                //
-                if idx == 0 {
-                    path.begin(Point::new(pos.x, pos.y));
-                } else {
-                    path.line_to(Point::new(pos.x, pos.y));
-                };
-            }
+            // for (idx, pos) in loaded_mesh_params.points.iter().enumerate() {
+            //     //
+            //     if idx == 0 {
+            //         path.begin(Point::new(pos.x, pos.y));
+            //     } else {
+            //         path.line_to(Point::new(pos.x, pos.y));
+            //     };
+            // }
 
-            path.close();
+            // path.close();
 
-            let built_path: Path = path.clone().build();
+            // let built_path: Path = path.clone().build();
+
+            let built_path = build_path_from_points(&loaded_mesh_params.points, 1.0);
 
             let (mesh, center_of_mass) = make_polygon_mesh(&built_path, true);
 

@@ -31,6 +31,8 @@ default = ["render", "sprite", "ui"]
 "ui" = ["bevy/bevy_ui"]
 "examples" = ["ui", "sprite", "render", "bevy/render", "bevy/bevy_winit", "bevy/x11", "bevy/bevy_asset"]
 
+# bevy = { version = "0.6.1", default-features = true, features = [  "render", "x11", "filesystem_watcher"] }
+
 [lib]
 name = "shapeshifter_level_maker"
 path = "src/lib.rs"

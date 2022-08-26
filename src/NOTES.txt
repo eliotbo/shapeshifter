@@ -1,9 +1,0 @@
-bird1 -> bird_box1 (leeway of 1)
-horse1 -> horse_sail1 (leeway of 1.05)
-tree1 -> butterfly1 (leeway of 1.1) or butterfly2 (leeway of 1.0)
-fish1 -> nanobot (leeway of 1.1)
-elephant -> lion ?
-
-
-
-I turned hover_path_point off so that efficiency is up

@@ -1,34 +1,31 @@
 // TODO: delete this example
 
 mod cut;
-pub mod input;
-pub mod load;
-mod material;
 mod poly;
-pub mod save;
 mod target;
-pub mod util;
 mod view;
 
-// pub use cut::*;
-// pub use input::*;
-// pub use load::*;
-// pub use material::*;
-// pub use poly::*;
-// pub use save::*;
-// pub use target::*;
-// pub use util::*;
-// pub use view::*;
+pub mod input;
+pub mod load_poly_wasm;
+pub mod material;
+pub mod util;
+
+///// Delete when building for wasm
+// pub mod load;
+// pub mod save;
 
 use cut::*;
 use input::*;
-use load::*;
+use load_poly_wasm::*;
 use material::*;
 use poly::*;
-use save::*;
 use target::*;
 use util::*;
 use view::*;
+
+///// Delete when building for wasm
+// use load::*;
+// use save::*;
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_easings::*;
@@ -56,19 +53,28 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_event::<Action>()
             .add_event::<TestCollisionEvent>()
             .add_event::<TestWinEvent>()
+            .add_event::<SpawnPoly>()
+            .add_event::<SpawnTarget>()
+            .add_event::<SpawnLevel>()
+            .add_event::<HasWonLevelEvent>()
             .insert_resource(Globals::default())
             .insert_resource(Cursor::default())
+            .insert_resource(LoadedPolygonsRaw::default())
+            .insert_resource(CurrentLevel::default())
             .add_plugin(bevy_easings::EasingsPlugin)
             .add_plugin(FillMesh2dPlugin)
             .add_plugin(TargetMesh2dPlugin)
             .add_plugin(CutMesh2dPlugin)
-            .add_plugin(LoadPlugin)
-            .add_plugin(SavePlugin)
+            // .add_plugin(LoadPlugin)
+            // .add_plugin(SavePlugin)
             // // // // // // .add_plugin(WorldInspectorPlugin::new())
             .add_plugin(CutPlugin)
             .add_plugin(PolyMakerPlugin)
             .add_plugin(TargetPlugin)
-            .add_startup_system(setup_mesh)
+            .add_startup_system(load_all_polygons)
+            .add_system(setup_mesh)
+            .add_system(spawn_poly)
+            .add_system(spawn_target)
             .add_system(record_mouse_events_system.exclusive_system().at_start())
             .add_system(direct_action)
             .add_system(glow_poly)
@@ -81,20 +87,23 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             // .add_system(hover_path_point)
             .add_system(direct_release_action)
             // delete me please
-            .add_system(debug_input)
+            // .add_system(debug_input)
             .add_system(transform_poly.exclusive_system().at_end());
     }
 }
 
 pub fn setup_mesh(
-    mut load_event_writer: EventWriter<Load>,
+    // mut load_event_writer: EventWriter<Load>,
     mut action_event_writer: EventWriter<Action>,
+    mut loaded_polygons_raw: ResMut<LoadedPolygonsRaw>,
 ) {
-    // load_event_writer.send(Load("my_mesh2".to_string()));
-    // action_event_writer.send(Action::LoadDialog);
-    // action_event_writer.send(Action::QuickLoadTarget { maybe_name: None });
+    if loaded_polygons_raw.is_changed() {
+        // load_event_writer.send(Load("my_mesh2".to_string()));
+        // action_event_writer.send(Action::LoadDialog);
+        // action_event_writer.send(Action::QuickLoadTarget { maybe_name: None });
 
-    // action_event_writer.send(Action::ToggleGrid);
+        // action_event_writer.send(Action::ToggleGrid);
+    }
 }
 
 pub fn debug_input(mut action_event_reader: EventReader<Action>) {
@@ -107,23 +116,22 @@ pub fn revert_to_init(
     mut commands: Commands,
     query: Query<Entity, Or<(With<Polygon>, With<CutSegment>)>>,
     mut action_event_reader: EventReader<Action>,
-    mut load_event_writer: EventWriter<Load>,
-    mut load_target_event_writer: EventWriter<LoadTarget>,
-    loaded_path: Res<LoadedPolyPath>,
-    loaded_target_path: Res<LoadedTargetPath>,
-    // mut action_event_writer: EventWriter<Action>,
+    current_level: Res<CurrentLevel>,
+    mut spawn_poly_event_writer: EventWriter<SpawnPoly>,
+    mut spawn_target_event_writer: EventWriter<SpawnTarget>,
 ) {
     if let Some(Action::RevertToInit) = action_event_reader.iter().next() {
         for entity in query.iter() {
             commands.entity(entity).despawn_recursive();
         }
-        if let Some(ref name) = loaded_path.maybe_path {
-            info!("reverting to {}", name);
-            load_event_writer.send(Load(name.clone()));
-        }
-        if let Some(ref name) = loaded_target_path.maybe_path {
-            load_target_event_writer.send(LoadTarget(name.clone()));
-        }
+        spawn_poly_event_writer.send(SpawnPoly {
+            polygon: current_level.polygon.clone(),
+            polygon_multiplier: current_level.polygon_multiplier,
+        });
+        spawn_target_event_writer.send(SpawnTarget {
+            target: current_level.target.clone(),
+            target_multiplier: current_level.target_multiplier,
+        });
     }
 }
 

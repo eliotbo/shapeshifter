@@ -49,7 +49,7 @@ pub fn glow_poly(
 
     let ctrl = keyboard_input.pressed(KeyCode::LControl);
     let shift = keyboard_input.pressed(KeyCode::LShift);
-    let q = keyboard_input.pressed(KeyCode::Q);
+    let pressed_q = keyboard_input.pressed(KeyCode::Q);
 
     for (entity, material_handle, transform, mesh_meta, maybe_moving) in query.iter() {
         //
@@ -75,14 +75,14 @@ pub fn glow_poly(
         let mut material = materials.get_mut(&material_handle).unwrap();
         material.show_com = 0.0;
 
-        if is_inside_poly && left_mouse_click && !ctrl && !shift && !q {
+        if is_inside_poly && left_mouse_click && !ctrl && !shift && !pressed_q {
             maybe_move_entity = Some((
                 entity,
                 PossibleMoves::Translation(transform.translation.truncate()),
             ));
         }
 
-        if is_inside_poly && right_mouse_click && !ctrl && !shift && !q {
+        if is_inside_poly && right_mouse_click && !ctrl && !shift && !pressed_q {
             maybe_move_entity = Some((entity, PossibleMoves::Rotation(angle)));
         }
 
@@ -97,7 +97,7 @@ pub fn glow_poly(
     //
 
     // TODO: prioritize higher z pos
-    if !q {
+    if !pressed_q {
         if let Some((entity, moves)) = maybe_move_entity {
             let (_, material_handle, _, _, _) = query.get(entity).unwrap();
             let mut material = materials.get_mut(&material_handle).unwrap();
@@ -136,7 +136,7 @@ pub fn transform_poly(
         Query<(Entity, &mut Transform, &Rotating, &MeshMeta), With<Polygon>>,
         Query<(Entity, &mut Transform, &Translating), With<Polygon>>,
     )>,
-    globals: Res<Globals>,
+    // globals: Res<Globals>,
     mut collision_test_writer: EventWriter<TestCollisionEvent>,
 ) {
     for (_, mut transform, rotating, _) in queries.p0().iter_mut() {
@@ -146,7 +146,8 @@ pub fn transform_poly(
             - cursor.last_right_click_position.x;
         // latch the final angle to fixed angles at every pi/25 radians
         let free_angle = -diag_mouse_dist * 0.0035 + rotating.starting_angle;
-        let angle = (free_angle / globals.min_turn_angle).round() * globals.min_turn_angle;
+        // let angle = (free_angle / globals.min_turn_angle).round() * globals.min_turn_angle;
+        let angle = free_angle;
         transform.rotation = Quat::from_rotation_z(angle);
     }
 

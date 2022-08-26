@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::input::Action;
-use crate::poly::Polygon;
+// use crate::poly::Polygon;
 use crate::util::*;
 
 // use std::fs::create_dir;
@@ -14,7 +14,9 @@ pub struct SavePlugin;
 
 impl Plugin for SavePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(quick_save).add_system(save_one_selected);
+        app.add_system(quick_save)
+            .add_system(save_one_selected)
+            .add_system(save_one_sent);
     }
 }
 
@@ -31,6 +33,60 @@ impl Plugin for SavePlugin {
 ////////////////// ////////////////// ////////////////// ////////////////// //////////////////
 ////////////////// ////////////////// ////////////////// ////////////////// //////////////////
 ////////////////// ////////////////// ////////////////// ////////////////// //////////////////
+
+struct PTSSaveFormat {
+    pub name: String,
+    pub points: Vec<Vec2>,
+}
+
+pub fn save_one_sent(mut action_event_reader: EventReader<Action>) {
+    // if let Some(Action::SaveOneDialog) = action_event_reader.iter().next() {
+
+    let mut maybe_file_name_vec: Vec<PTSSaveFormat> = vec![];
+
+    for action in action_event_reader.iter() {
+        match action {
+            Action::SaveOneSent { name, pts } => {
+                maybe_file_name_vec.push(PTSSaveFormat {
+                    name: name.to_owned(),
+                    points: pts.to_owned(),
+                });
+            }
+
+            _ => {}
+        };
+    }
+
+    // //
+    // //
+    // // opens up file dialog
+    let mut save_prepath = std::env::current_dir().unwrap();
+    save_prepath.push("assets/meshes/dummy.pts");
+
+    for file_info in maybe_file_name_vec {
+        {
+            // info!("save file_info: {:?}", file_info.name);
+            // let (axis, transform_rotation_angle) = transform.rotation.to_axis_angle();
+            // let angle = axis.z * transform_rotation_angle;
+
+            let save_mesh_meta: SaveMeshMeta2 = SaveMeshMeta2 {
+                name: file_info.name.to_owned(),
+                points: file_info.points.clone(),
+                translation: Vec2::ZERO,
+                rotation: 0.0,
+            };
+
+            let save_path = save_prepath.with_file_name(&(file_info.name + ".pts"));
+            // save_prepath.with_extension("pts");
+
+            info!("save_path: {:?}", save_path);
+
+            let serialized = serde_json::to_string_pretty(&save_mesh_meta).unwrap();
+            let mut output = File::create(save_path).unwrap();
+            let _group_write_result = output.write(serialized.as_bytes());
+        }
+    }
+}
 
 pub fn save_one_selected(
     mesh_query: Query<(&Transform, &MeshMeta), (With<Polygon>, With<Selected>)>,
@@ -54,10 +110,11 @@ pub fn save_one_selected(
                 let (axis, transform_rotation_angle) = transform.rotation.to_axis_angle();
                 let angle = axis.z * transform_rotation_angle;
 
-                let save_mesh_meta: SaveMeshMeta = SaveMeshMeta {
+                let save_mesh_meta: SaveMeshMeta2 = SaveMeshMeta2 {
                     points: mesh_meta.points.clone(),
                     translation: transform.translation.truncate(),
                     rotation: angle,
+                    name: "".to_owned(),
                 };
                 let serialized = serde_json::to_string_pretty(&save_mesh_meta).unwrap();
                 let mut output = File::create(chosen_path).unwrap();
@@ -67,10 +124,11 @@ pub fn save_one_selected(
                     let (axis, transform_rotation_angle) = transform.rotation.to_axis_angle();
                     let angle = axis.z * transform_rotation_angle;
 
-                    let save_mesh_meta: SaveMeshMeta = SaveMeshMeta {
+                    let save_mesh_meta: SaveMeshMeta2 = SaveMeshMeta2 {
                         points: mesh_meta.points.clone(),
                         translation: transform.translation.truncate(),
                         rotation: angle,
+                        name: "".to_owned(),
                     };
                     let serialized = serde_json::to_string_pretty(&save_mesh_meta).unwrap();
                     let mut output = File::create(chosen_path).unwrap();
@@ -118,10 +176,11 @@ pub fn quick_save(
             let (axis, transform_rotation_angle) = transform.rotation.to_axis_angle();
             let angle = axis.z * transform_rotation_angle;
 
-            let save_mesh_meta: SaveMeshMeta = SaveMeshMeta {
+            let save_mesh_meta: SaveMeshMeta2 = SaveMeshMeta2 {
                 points: mesh_meta.points.clone(),
                 translation: transform.translation.truncate(),
                 rotation: angle,
+                name: "".to_owned(),
             };
             let serialized = serde_json::to_string_pretty(&save_mesh_meta).unwrap();
             let mut output = File::create(free_save_path_points).unwrap();
