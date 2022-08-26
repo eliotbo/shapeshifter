@@ -166,6 +166,15 @@ impl SpawnLevel {
             number_of_cuts,
         }
     }
+
+    pub fn new4(polygon: &str, target: &str, number_of_cuts: usize, mult: f32) -> Self {
+        Self {
+            polygon: polygon.to_string(),
+            target: target.to_string(),
+            target_multiplier: mult,
+            number_of_cuts,
+        }
+    }
 }
 
 pub struct RemainingCuts {

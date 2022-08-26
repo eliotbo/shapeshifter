@@ -9,6 +9,8 @@ mod menu;
 
 mod levels;
 
+mod spawn;
+
 // mod cam;
 use bevy::prelude::*;
 // use cam::*;

@@ -30,14 +30,21 @@ impl Default for GameLevels {
             SpawnLevel::new3("002_simplicity_square", "002_simplicity_square", 0),
             //
             //
-            SpawnLevel::new3(
-                "003_simplicity_square_oblique",
-                "004_simplicity_rectangle",
-                0,
+            SpawnLevel::new3("002_simplicity_square", "003_simplicity_square_oblique", 3),
+            //
+            SpawnLevel::new4(
+                "002_simplicity_square",
+                "004_simplicity_square_cut",
+                3,
+                1.15,
             ),
             //
-            //
-            SpawnLevel::new2("004_simplicity_square_cut", "005_simplicity_cactus"),
+            SpawnLevel::new4(
+                "002_simplicity_square",
+                "004_simplicity_square_parallel",
+                3,
+                1.15,
+            ),
         ];
         let convexity = Vec::new();
         let perplexity = Vec::new();

@@ -12,7 +12,7 @@ pub mod util;
 
 ///// Delete when building for wasm
 // pub mod load;
-// pub mod save;
+// use load::*;
 
 use cut::*;
 use input::*;
@@ -23,12 +23,15 @@ use target::*;
 use util::*;
 use view::*;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod save;
+#[cfg(not(target_arch = "wasm32"))]
+use save::*;
+
 ///// Delete when building for wasm
-// use load::*;
-// use save::*;
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use bevy_easings::*;
+// use bevy_easings::*;
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 // use bevy_inspector_egui::WorldInspectorPlugin;
@@ -36,8 +39,18 @@ use bevy_easings::*;
 
 pub struct ShapeshifterLevelMakerPlugin;
 
+#[cfg(not(target_arch = "wasm32"))]
+fn add_save(app: &mut App) {
+    app.add_plugin(SavePlugin);
+}
+
+#[cfg(not(target_os = "linux"))]
+fn add_save(_app: &mut App) {
+    // app.add_plugin(SavePlugin);
+}
+
 impl Plugin for ShapeshifterLevelMakerPlugin {
-    fn build(&self, app: &mut App) {
+    fn build(&self, mut app: &mut App) {
         // .insert_resource(WindowDescriptor {
         //     title: "pen".to_string(),
         //     width: 1200.,
@@ -90,6 +103,12 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             // delete me please
             // .add_system(debug_input)
             .add_system(transform_poly.exclusive_system().at_end());
+
+        add_save(&mut app);
+
+        // if cfg!(unix) {
+        // app.add_plugin(SavePlugin);
+        // }
     }
 }
 
