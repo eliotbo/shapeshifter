@@ -45,37 +45,40 @@ pub fn spawn_shortcuts(mut commands: Commands, asset_server: Res<AssetServer>) {
     //
     info!("spawn_shortcuts");
 
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    let font = asset_server.load("fonts/FiraMono-Medium.ttf");
 
     let text = "
+draw polygon:       shift + left click (then release shift to continue)
 move point:         Q  + left mouse
 add point:          left shift + right click
 select:             crtl + shift + left click
 delete selected:    delete 
 delete all:         crtl + shift + delete
+toggle grid:        g
+
 ";
     let text_style = TextStyle {
         font: font.clone(),
-        font_size: 30.0,
+        font_size: 22.0,
         color: TEXT_COLOR,
     };
 
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
-                margin: UiRect::all(Val::Auto),
+                margin: UiRect::all(Val::Px(5.0)),
                 flex_direction: FlexDirection::ColumnReverse,
                 align_items: AlignItems::FlexEnd,
                 justify_content: JustifyContent::FlexEnd,
                 position_type: PositionType::Absolute,
                 position: UiRect {
-                    left: Val::Px(50.0),
-                    top: Val::Px(50.0),
+                    left: Val::Px(5.0),
+                    top: Val::Px(5.0),
                     ..default()
                 },
                 ..default()
             },
-            color: Color::rgba(1., 0., 0., 1.).into(),
+            color: Color::rgba(0., 0., 0., 0.).into(),
             ..default()
         })
         .insert(Instruction)
@@ -83,7 +86,7 @@ delete all:         crtl + shift + delete
             // Display the game name
             parent.spawn_bundle(
                 TextBundle::from_section(text, text_style).with_style(Style {
-                    margin: UiRect::all(Val::Px(50.0)),
+                    margin: UiRect::all(Val::Px(5.0)),
                     ..default()
                 }),
             );

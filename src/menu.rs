@@ -72,7 +72,7 @@ impl Plugin for MenuPlugin {
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 enum MenuState {
     Main,
-    Design,
+    // Design,
     Settings,
     // SettingsDisplay,
     // SettingsSound,
@@ -413,8 +413,9 @@ fn menu_action(
                 }
 
                 MenuButtonAction::Design => {
-                    menu_state.set(MenuState::Design).unwrap();
-                    info!("menu state: {:?}", menu_state);
+                    game_state.set(GameState::Design).unwrap();
+                    menu_state.set(MenuState::Disabled).unwrap();
+                    // info!("menu state: {:?}", menu_state);
                 }
 
                 MenuButtonAction::BackToMainMenu => {
