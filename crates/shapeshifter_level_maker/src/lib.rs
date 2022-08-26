@@ -11,8 +11,6 @@ pub mod material;
 pub mod util;
 
 ///// Delete when building for wasm
-// pub mod load;
-// use load::*;
 
 use cut::*;
 use input::*;
@@ -27,6 +25,10 @@ use view::*;
 pub mod save;
 #[cfg(not(target_arch = "wasm32"))]
 use save::*;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod load;
+#[cfg(not(target_arch = "wasm32"))]
+use load::*;
 
 ///// Delete when building for wasm
 
@@ -42,6 +44,7 @@ pub struct ShapeshifterLevelMakerPlugin;
 #[cfg(not(target_arch = "wasm32"))]
 fn add_save(app: &mut App) {
     app.add_plugin(SavePlugin);
+    app.add_plugin(LoadPlugin);
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -51,16 +54,6 @@ fn add_save(_app: &mut App) {
 
 impl Plugin for ShapeshifterLevelMakerPlugin {
     fn build(&self, mut app: &mut App) {
-        // .insert_resource(WindowDescriptor {
-        //     title: "pen".to_string(),
-        //     width: 1200.,
-        //     height: 800.,
-        //     // present_mode: bevy::window::PresentMode::Immediate,
-        //     ..Default::default()
-        // })
-        //
-        // .add_plugin(LogDiagnosticsPlugin::default())
-        // .add_plugin(FrameTimeDiagnosticsPlugin::default())
         //
         app.add_event::<StartMakingSegment>()
             .add_event::<Action>()
@@ -68,6 +61,21 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_event::<TestWinEvent>()
             .add_event::<SpawnPoly>()
             .add_event::<SpawnTarget>()
+            //
+            //
+            //
+            // .insert_resource(WindowDescriptor {
+            //     title: "pen".to_string(),
+            //     width: 1200.,
+            //     height: 800.,
+            //     present_mode: bevy::window::PresentMode::Immediate,
+            //     ..Default::default()
+            // })
+            // .add_plugin(LogDiagnosticsPlugin::default())
+            // .add_plugin(FrameTimeDiagnosticsPlugin::default())
+            //
+            //
+            //
             .add_event::<SpawnLevel>()
             .add_event::<HasWonLevelEvent>()
             .add_event::<PerformedCut>()
@@ -79,7 +87,7 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_plugin(FillMesh2dPlugin)
             .add_plugin(TargetMesh2dPlugin)
             .add_plugin(CutMesh2dPlugin)
-            // .add_plugin(LoadPlugin)
+            //
             // .add_plugin(SavePlugin)
             // // // // // // .add_plugin(WorldInspectorPlugin::new())
             .add_plugin(CutPlugin)
@@ -98,7 +106,7 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_system(test_collisions)
             .add_system(revert_to_init)
             .add_system(move_path_point)
-            // .add_system(hover_path_point)
+            .add_system(hover_path_point)
             .add_system(direct_release_action)
             // delete me please
             // .add_system(debug_input)

@@ -1,20 +1,14 @@
+mod design;
 mod game;
-// use game::*;
-
-mod splash;
-// use splash::*;
-
-mod menu;
-// use menu::*;
-
+mod game_spawn;
 mod levels;
+mod menu;
+mod splash;
 
-mod spawn;
-
-// mod cam;
 use bevy::prelude::*;
-// use cam::*;
 use shapeshifter_level_maker::ShapeshifterLevelMakerPlugin;
+
+// use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 
@@ -24,14 +18,7 @@ enum GameState {
     Splash,
     Menu,
     Game,
-}
-
-// One of the two settings that can be set through the menu. It will be a resource in the app
-#[derive(Debug, Component, PartialEq, Eq, Clone, Copy)]
-enum DisplayQuality {
-    Low,
-    Medium,
-    High,
+    Design,
 }
 
 // One of the two settings that can be set through the menu. It will be a resource in the app
@@ -40,12 +27,26 @@ struct Volume(u32);
 
 fn main() {
     App::new()
+        //
+        //
+        //
+        // .insert_resource(WindowDescriptor {
+        //     title: "pen".to_string(),
+        //     width: 1200.,
+        //     height: 800.,
+        //     present_mode: bevy::window::PresentMode::Immediate,
+        //     ..Default::default()
+        // })
+        // .add_plugin(LogDiagnosticsPlugin::default())
+        // .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        //
+        //
+        //
         .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapeshifterLevelMakerPlugin)
         // .add_plugin(CamPlugin)
         // Insert as resource the initial value for the settings resources
-        .insert_resource(DisplayQuality::Medium)
         // .add_startup_system(camera_setup)
         .add_startup_system(setup)
         // Declare the game state, and set its startup value
@@ -54,6 +55,7 @@ fn main() {
         .add_plugin(splash::SplashPlugin)
         .add_plugin(menu::MenuPlugin)
         .add_plugin(game::GamePlugin)
+        .add_plugin(design::DesignPlugin)
         .run();
 }
 

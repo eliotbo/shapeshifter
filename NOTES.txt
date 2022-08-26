@@ -9,3 +9,21 @@ elephant -> lion ?
 I turned hover_path_point off so that efficiency is up
 
 rhino to cat seems fun
+
+
+key bindings:
+shift + right click ----> add point to closest polygon edge
+q + left click ---------> drag polygon point
+
+
+
+cool puzzles
+tangrams
+https://www.youtube.com/watch?v=Kw8f9HeZ8TY
+
+https://www.cs.purdue.edu/homes/gnf/book2/anim34sn.gif
+https://www.cs.purdue.edu/homes/gnf/book2/modphoto.html
+
+https://www.cs.purdue.edu/homes/gnf/book.html
+
+https://www.google.com/imgres?imgurl=https%3A%2F%2Fwww.ics.uci.edu%2F~eppstein%2Fjunkyard%2Fdissection.gif&imgrefurl=https%3A%2F%2Fwww.ics.uci.edu%2F~eppstein%2Fjunkyard%2Fdissect.html&tbnid=hTc_3mxTo9p0YM&vet=12ahUKEwjm6o21ieX5AhUTqnIEHX3VBMEQMygGegUIARDQAQ..i&docid=7Tz3pD1p3kT4tM&w=456&h=226&q=shape%20rearrangement%20puzzles%20for%20adults&client=ubuntu&ved=2ahUKEwjm6o21ieX5AhUTqnIEHX3VBMEQMygGegUIARDQAQ

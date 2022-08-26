@@ -4,14 +4,12 @@ TODO:
 
 
 
-0) load polygons with include_str!
-
 1) a view for selecting a custom match and start a new level (with struct for the match
     poly_name, target_name, target_multiplier)
 
 2) tetris like arrows (holding shift make edges stick to each other)
 3) make Convexity section 
-4) make tutorial section (Simplicity)
+
 5) match pairs of animal polygons and try to map them to each other
 
 
@@ -46,7 +44,8 @@ FINAL VERSION
 
     0) remove grid
     1) remove most of polygon making code 
-    
+    2) remove move point functionality
+
 
 
 
@@ -55,6 +54,7 @@ IDEAs
 
 
     Each section has its own theme
+    00) FELT
     0) Wood
     1) Metal
     2) Stone 

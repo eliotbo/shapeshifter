@@ -415,7 +415,7 @@ pub fn end_segment(
         //     _ => false,
         // }) {
         // let mut pos = Point::new(0.0, 0.0);
-        info!("up here");
+
         for (parent, entity, mut transform, mesh_handle, making_segment) in segment_query.iter_mut()
         {
             // snap end to grid
@@ -448,8 +448,6 @@ pub fn end_segment(
             *transform = segment_meta.transform;
 
             commands.entity(entity).remove::<MakingSegment>();
-
-            info!("end segment, and start new");
 
             start_segment_event_writer.send(StartMakingSegment { start: pos });
         }
@@ -495,11 +493,11 @@ pub fn end_polygon(
             poly.path.close();
 
             let path = poly.path.clone().build();
-            let area = approximate_signed_area(0.1, &path);
 
-            info!("area : {}", area);
-            if area.abs() < 200.0 {
-                info!("area too small: {}", area);
+            // // refuse to cut a polygon is the resulting area is too small
+            // // (too much of a hasle to click on the tiny area)
+            let area = approximate_signed_area(0.1, &path);
+            if area.abs() < 20.0 {
                 commands.entity(entity).despawn_recursive();
                 return;
             }

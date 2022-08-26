@@ -209,7 +209,7 @@ pub fn perform_cut(
         (Entity, &Handle<FillMesh2dMaterial>, &Transform, &MeshMeta),
         With<Polygon>,
     >,
-    // mut performed_cut_event_writer: EventWriter<PerformedCut>,
+    mut performed_cut_event_writer: EventWriter<PerformedCut>,
 ) {
     for (cut_entity, cut) in cut_query.iter() {
         commands.entity(cut_entity).despawn();
@@ -502,7 +502,7 @@ pub fn perform_cut(
         if do_remove_cut_entity {
             commands.entity(cut_entity).despawn();
         } else {
-            // performed_cut_event_writer.send(PerformedCut);
+            performed_cut_event_writer.send(PerformedCut);
             remaining_cuts.remaining -= 1;
         }
     }

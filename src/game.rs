@@ -1,12 +1,13 @@
 use crate::levels::*;
 // use crate::spawn::*;
-use crate::spawn::*;
+use crate::game_spawn::*;
+use crate::levels::send_tutorial_text;
 
 use bevy::audio::AudioSink;
 use bevy::prelude::*;
 
 use shapeshifter_level_maker::util::{
-    HasWonLevelEvent, Polygon, RemainingCuts, SpawnLevel, Target,
+    HasWonLevelEvent, PerformedCut, Polygon, RemainingCuts, SpawnLevel, Target,
 };
 
 use super::GameState;
@@ -18,13 +19,15 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameLevels::default())
-            .insert_resource(CurrentLevel::Simplicity(0))
-            .insert_resource(UnlockedCities { cities: Vec::new() })
+            .insert_resource(Level::Simplicity(5))
+            .insert_resource(UnlockedLevels { levels: Vec::new() })
+            .insert_resource(WholeGameCuts { cuts: 0 })
             .add_event::<NextLevel>()
             .add_event::<PreviousLevel>()
             .add_event::<WonTheGame>()
             .add_event::<SpawnPauseMenu>()
             .add_event::<SpawnNextLevelButton>()
+            .add_event::<SpawnInstruction>()
             .add_system_set(SystemSet::on_exit(GameState::Game).with_system(delete_game_entities))
             .add_system_set(
                 SystemSet::on_enter(GameState::Game)
@@ -33,11 +36,14 @@ impl Plugin for GamePlugin {
             )
             .add_system_set(
                 SystemSet::on_update(GameState::Game)
+                    .with_system(spawn_won_screen)
                     .with_system(spawn_next_level_button)
                     .with_system(spawn_pause_menu)
                     .with_system(next_level)
-                    .with_system(spawn_level_adjust_cuts_resource)
+                    .with_system(spawn_level_adjustments)
+                    .with_system(spawn_instruction)
                     .with_system(previous_level)
+                    .with_system(inscrease_total_cuts)
                     .with_system(next_button_action)
                     .with_system(force_next_level)
                     .with_system(adjust_cuts_label)
@@ -51,33 +57,37 @@ impl Plugin for GamePlugin {
     }
 }
 
-pub struct UnlockedCities {
-    pub cities: Vec<CurrentLevel>,
+pub struct WholeGameCuts {
+    pub cuts: usize,
+}
+
+pub struct UnlockedLevels {
+    pub levels: Vec<Level>,
 }
 
 // #[derive(Deref, DerefMut)]
 // struct GameTimer(Timer);
 
 #[derive(Clone)]
-pub enum CurrentLevel {
+pub enum Level {
     Simplicity(usize),
     Convexity(usize),
     Perplexity(usize),
     Complexity(usize),
 }
 
-impl CurrentLevel {
+impl Level {
     pub fn simplicity(&mut self, x: usize) {
-        *self = CurrentLevel::Simplicity(x);
+        *self = Level::Simplicity(x);
     }
     pub fn convexity(&mut self, x: usize) {
-        *self = CurrentLevel::Convexity(x);
+        *self = Level::Convexity(x);
     }
     pub fn perplexity(&mut self, x: usize) {
-        *self = CurrentLevel::Perplexity(x);
+        *self = Level::Perplexity(x);
     }
     pub fn complexity(&mut self, x: usize) {
-        *self = CurrentLevel::Complexity(x);
+        *self = Level::Complexity(x);
     }
 }
 
@@ -93,6 +103,15 @@ pub enum GameButtonAction {
     ToMenu,
 }
 
+fn inscrease_total_cuts(
+    mut performed_cut_event_reader: EventReader<PerformedCut>,
+    mut whole_game_cuts: ResMut<WholeGameCuts>,
+) {
+    for _ in performed_cut_event_reader.iter() {
+        whole_game_cuts.cuts += 1;
+    }
+}
+
 fn delete_game_entities(
     mut commands: Commands,
     query: Query<
@@ -103,11 +122,12 @@ fn delete_game_entities(
             With<Target>,
             With<Polygon>,
             With<RemainingCutsComponent>,
+            With<Instruction>,
         )>,
     >,
-    mut current_level: ResMut<CurrentLevel>,
+    // mut current_level: ResMut<CurrentLevel>,
 ) {
-    current_level.simplicity(0);
+    // current_level.simplicity(0);
     for entity in &query {
         commands.entity(entity).despawn_recursive();
     }
@@ -130,13 +150,18 @@ fn show_pause_menu(
     }
 }
 
-fn spawn_level_adjust_cuts_resource(
+fn spawn_level_adjustments(
+    mut commands: Commands,
     mut remaining_cuts: ResMut<RemainingCuts>,
 
     mut spawn_level_event_reader: EventReader<SpawnLevel>,
+    query: Query<Entity, With<Instruction>>,
 ) {
     for level in spawn_level_event_reader.iter() {
         remaining_cuts.remaining = level.number_of_cuts;
+        for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
     }
 }
 
@@ -157,24 +182,31 @@ fn adjust_cuts_label(
 fn next_level(
     // mut commands: Commands,
     game_levels: ResMut<GameLevels>,
-    mut unlocked_cities: ResMut<UnlockedCities>,
+    mut unlocked_levels: ResMut<UnlockedLevels>,
     mut next_level_event_reader: EventReader<NextLevel>,
-    mut current_level: ResMut<CurrentLevel>,
+    mut current_level: ResMut<Level>,
+
     mut won_the_game_event_writer: EventWriter<WonTheGame>,
     mut spawn_level_event_writer: EventWriter<SpawnLevel>,
+    mut spawn_instruction_event_writer: EventWriter<SpawnInstruction>,
 ) {
     if let Some(_) = next_level_event_reader.iter().next() {
         match *current_level {
-            CurrentLevel::Simplicity(level) => {
+            Level::Simplicity(level) => {
+                // if level + 1 == 6 {
+                //     won_the_game_event_writer.send(WonTheGame);
+                //     return;
+                // }
                 if level < game_levels.simplicity.len() - 1 {
                     current_level.simplicity(level + 1);
                     spawn_level_event_writer.send(game_levels.simplicity[level + 1].clone());
+                    send_tutorial_text(level + 1, &mut spawn_instruction_event_writer);
                 } else {
                     current_level.convexity(0);
                     spawn_level_event_writer.send(game_levels.convexity[0].clone());
                 }
             }
-            CurrentLevel::Convexity(level) => {
+            Level::Convexity(level) => {
                 if level < game_levels.convexity.len() - 1 {
                     current_level.convexity(level + 1);
                     spawn_level_event_writer.send(game_levels.convexity[level + 1].clone());
@@ -184,7 +216,7 @@ fn next_level(
                 }
                 spawn_level_event_writer.send(game_levels.simplicity[level].clone());
             }
-            CurrentLevel::Perplexity(level) => {
+            Level::Perplexity(level) => {
                 if level < game_levels.perplexity.len() - 1 {
                     current_level.perplexity(level + 1);
                     spawn_level_event_writer.send(game_levels.perplexity[level + 1].clone());
@@ -193,7 +225,7 @@ fn next_level(
                     spawn_level_event_writer.send(game_levels.complexity[0].clone());
                 }
             }
-            CurrentLevel::Complexity(level) => {
+            Level::Complexity(level) => {
                 if level < game_levels.complexity.len() - 1 {
                     current_level.complexity(level + 1);
                     spawn_level_event_writer.send(game_levels.complexity[level + 1].clone());
@@ -202,7 +234,7 @@ fn next_level(
                 }
             }
         }
-        unlocked_cities.cities.push(current_level.clone());
+        unlocked_levels.levels.push(current_level.clone());
     }
 }
 
@@ -211,18 +243,18 @@ fn previous_level(
     game_levels: ResMut<GameLevels>,
 
     mut previous_level_event_reader: EventReader<PreviousLevel>,
-    mut current_level: ResMut<CurrentLevel>,
+    mut current_level: ResMut<Level>,
     mut spawn_level_event_writer: EventWriter<SpawnLevel>,
 ) {
     if let Some(_) = previous_level_event_reader.iter().next() {
         match *current_level {
-            CurrentLevel::Simplicity(level) => {
+            Level::Simplicity(level) => {
                 if level > 0 {
                     current_level.simplicity(level - 1);
                     spawn_level_event_writer.send(game_levels.simplicity[level - 1].clone());
                 } // do nothing if we're at the first level
             }
-            CurrentLevel::Convexity(level) => {
+            Level::Convexity(level) => {
                 if level > 0 {
                     current_level.convexity(level - 1);
                     spawn_level_event_writer.send(game_levels.convexity[level - 1].clone());
@@ -232,7 +264,7 @@ fn previous_level(
                         .send(game_levels.simplicity[game_levels.simplicity.len() - 1].clone());
                 }
             }
-            CurrentLevel::Perplexity(level) => {
+            Level::Perplexity(level) => {
                 if level > 0 {
                     current_level.perplexity(level - 1);
                     spawn_level_event_writer.send(game_levels.perplexity[level - 1].clone());
@@ -242,7 +274,7 @@ fn previous_level(
                         .send(game_levels.convexity[game_levels.convexity.len() - 1].clone());
                 }
             }
-            CurrentLevel::Complexity(level) => {
+            Level::Complexity(level) => {
                 if level > 0 {
                     current_level.complexity(level - 1);
                     spawn_level_event_writer.send(game_levels.complexity[level - 1].clone());
@@ -279,7 +311,7 @@ fn next_button_action(
     mut next_level_event_writer: EventWriter<NextLevel>,
     mut game_state: ResMut<State<GameState>>,
     game_levels: ResMut<GameLevels>,
-    current_level: Res<CurrentLevel>,
+    current_level: Res<Level>,
     mut spawn_level_event_writer: EventWriter<SpawnLevel>,
     pause_menu_query: Query<Entity, With<PauseMenu>>,
     next_button_query: Query<Entity, With<NextButtonParent>>,
@@ -337,9 +369,22 @@ fn activate_next_level_button(
     mut has_won_event_reader: EventReader<HasWonLevelEvent>,
     mut go_next_button_query: Query<(Entity, &mut Visibility), With<Button>>,
     mut spawn_next_level_button_event_writer: EventWriter<SpawnNextLevelButton>,
+    current_level: Res<Level>,
+    mut won_the_game_event_writer: EventWriter<WonTheGame>,
 ) {
     //
     if let Some(_) = has_won_event_reader.iter().next() {
+        // TODO: REMOVE THIS
+        match *current_level {
+            Level::Simplicity(level) => {
+                if level + 1 == 6 {
+                    won_the_game_event_writer.send(WonTheGame);
+                    return;
+                }
+            }
+            _ => {}
+        }
+
         spawn_next_level_button_event_writer.send(SpawnNextLevelButton);
 
         for (entity, mut vis) in go_next_button_query.iter_mut() {
@@ -352,6 +397,8 @@ fn activate_next_level_button(
 fn game_setup(
     mut spawn_level_event_writer: EventWriter<SpawnLevel>,
     game_levels: ResMut<GameLevels>,
+    mut spawn_instruction_event_writer: EventWriter<SpawnInstruction>,
 ) {
-    spawn_level_event_writer.send(game_levels.simplicity[0].clone());
+    spawn_level_event_writer.send(game_levels.simplicity[5].clone());
+    send_tutorial_text(0, &mut spawn_instruction_event_writer);
 }

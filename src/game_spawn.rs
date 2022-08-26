@@ -9,7 +9,7 @@ use shapeshifter_level_maker::util::{
 
 use super::TEXT_COLOR;
 
-use crate::game::GameButtonAction;
+use crate::game::{GameButtonAction, WholeGameCuts, WonTheGame};
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 
@@ -20,10 +20,109 @@ pub struct PauseMenu;
 pub struct NextButtonParent;
 
 #[derive(Component)]
+pub struct Instruction;
+
+#[derive(Component)]
 pub struct RemainingCutsComponent;
 
 pub struct SpawnNextLevelButton;
 pub struct SpawnPauseMenu;
+pub struct SpawnInstruction {
+    pub text: String,
+}
+
+pub fn spawn_won_screen(
+    mut commands: Commands,
+    whole_game_cut: Res<WholeGameCuts>,
+    asset_server: Res<AssetServer>,
+    mut won_the_game_event_reader: EventReader<WonTheGame>,
+) {
+    //
+    if let Some(_) = won_the_game_event_reader.iter().next() {
+        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+        let text = format!("You won the game with {} cuts!", whole_game_cut.cuts);
+        let text_style = TextStyle {
+            font: font.clone(),
+            font_size: 30.0,
+            color: TEXT_COLOR,
+        };
+
+        commands
+            .spawn_bundle(NodeBundle {
+                style: Style {
+                    margin: UiRect::all(Val::Auto),
+                    flex_direction: FlexDirection::ColumnReverse,
+                    align_items: AlignItems::FlexEnd,
+                    justify_content: JustifyContent::FlexEnd,
+                    position_type: PositionType::Absolute,
+                    position: UiRect {
+                        // left: Val::Px(50.0),
+                        top: Val::Px(50.0),
+                        ..default()
+                    },
+                    ..default()
+                },
+                color: Color::rgba(0., 0., 0., 0.).into(),
+                ..default()
+            })
+            .insert(Instruction)
+            .with_children(|parent| {
+                // Display the game name
+                parent.spawn_bundle(
+                    TextBundle::from_section(text, text_style).with_style(Style {
+                        margin: UiRect::all(Val::Px(50.0)),
+                        ..default()
+                    }),
+                );
+            });
+    }
+}
+
+pub fn spawn_instruction(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut spawn_instruction_event_reader: EventReader<SpawnInstruction>,
+) {
+    if let Some(instruction) = spawn_instruction_event_reader.iter().next() {
+        //
+        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        let text_style = TextStyle {
+            font: font.clone(),
+            font_size: 30.0,
+            color: TEXT_COLOR,
+        };
+
+        commands
+            .spawn_bundle(NodeBundle {
+                style: Style {
+                    margin: UiRect::all(Val::Auto),
+                    flex_direction: FlexDirection::ColumnReverse,
+                    align_items: AlignItems::FlexEnd,
+                    justify_content: JustifyContent::FlexEnd,
+                    position_type: PositionType::Absolute,
+                    position: UiRect {
+                        left: Val::Px(50.0),
+                        bottom: Val::Px(50.0),
+                        ..default()
+                    },
+                    ..default()
+                },
+                color: Color::rgba(0., 0., 0., 0.).into(),
+                ..default()
+            })
+            .insert(Instruction)
+            .with_children(|parent| {
+                // Display the game name
+                parent.spawn_bundle(
+                    TextBundle::from_section(&instruction.text, text_style).with_style(Style {
+                        margin: UiRect::all(Val::Px(50.0)),
+                        ..default()
+                    }),
+                );
+            });
+    }
+}
 
 pub fn spawn_pause_menu(
     mut commands: Commands,
