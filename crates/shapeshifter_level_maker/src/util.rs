@@ -130,12 +130,24 @@ pub struct Target {
     pub path: Path,
 }
 
+pub struct TurnPolyIntoTarget;
+
 pub struct SpawnPoly {
     pub polygon: String,
     pub polygon_multiplier: f32,
 }
 
+pub struct SpawnPolyKeepPoly {
+    pub polygon: String,
+    pub polygon_multiplier: f32,
+}
+
 pub struct SpawnTarget {
+    pub target: String,
+    pub target_multiplier: f32,
+}
+
+pub struct SpawnTargetKeepTarget {
     pub target: String,
     pub target_multiplier: f32,
 }
@@ -469,9 +481,14 @@ pub fn transform_path(path: &Path, transform: &Transform) -> (Path, f32) {
     let rot = lyon::geom::Rotation::radians(angle);
     let translation =
         lyon::geom::Translation::new(transform.translation.x, transform.translation.y);
+    let scale = lyon::geom::Scale::new(transform.scale.x);
 
     // the points are at the origin, so we need to take the translation + rotation into account
-    let transformed_path = path.clone().transformed(&rot).transformed(&translation);
+    let transformed_path = path
+        .clone()
+        .transformed(&scale)
+        .transformed(&rot)
+        .transformed(&translation);
 
     return (transformed_path, angle);
 }
@@ -652,6 +669,7 @@ pub fn spawn_poly(
     mut meshes: ResMut<Assets<Mesh>>,
     mut spawn_poly_event_reader: EventReader<SpawnPoly>,
     mut spawn_level_event_reader: EventReader<SpawnLevel>,
+    mut spawn_polykeep_event_reader: EventReader<SpawnPolyKeepPoly>,
     globals: Res<Globals>,
 ) {
     // let (mesh, center_of_mass) = make_poly(mesh_meta, position);
@@ -686,6 +704,18 @@ pub fn spawn_poly(
         for entity in query.iter() {
             commands.entity(entity).despawn();
         }
+    }
+
+    // this event keeps the existing polygons in the world
+    for SpawnPolyKeepPoly {
+        polygon,
+        polygon_multiplier,
+    } in spawn_polykeep_event_reader.iter()
+    {
+        poly_vec.push(SpawnPoly {
+            polygon: polygon.clone(),
+            polygon_multiplier: *polygon_multiplier,
+        });
     }
 
     for SpawnPoly {
@@ -793,6 +823,7 @@ pub fn spawn_target(
     mut meshes: ResMut<Assets<Mesh>>,
     mut spawn_target_event_reader: EventReader<SpawnTarget>,
     mut spawn_level_event_reader: EventReader<SpawnLevel>,
+    mut spawn_targetkeep_event_reader: EventReader<SpawnTargetKeepTarget>,
     globals: Res<Globals>,
 ) {
     // let (mesh, center_of_mass) = make_poly(mesh_meta, position);
@@ -826,6 +857,18 @@ pub fn spawn_target(
         for entity in query.iter() {
             commands.entity(entity).despawn();
         }
+    }
+
+    // this event keeps the existing polygons in the world
+    for SpawnTargetKeepTarget {
+        target,
+        target_multiplier,
+    } in spawn_targetkeep_event_reader.iter()
+    {
+        target_vec.push(SpawnTarget {
+            target: target.clone(),
+            target_multiplier: target_multiplier.clone(),
+        });
     }
 
     for SpawnTarget {
@@ -902,6 +945,53 @@ pub fn spawn_target(
                 //     name: mesh_meta.name,
                 // })
                 .id();
+        }
+    }
+}
+
+// turns a polygon into a target by removing the polygon component, adding the target component
+// and changing its color
+pub fn turn_poly_into_target(
+    mut commands: Commands,
+    // mut poly_raw_map: ResMut<LoadedPolygonsRaw>,
+    mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    mut poly_query: Query<
+        (
+            Entity,
+            &mut Transform,
+            &MeshMeta,
+            &Handle<FillMesh2dMaterial>,
+        ),
+        (With<Polygon>, With<Selected>),
+    >,
+    target_query: Query<Entity, With<Target>>,
+    globals: Res<Globals>,
+    mut turn_poly_into_target_event_reader: EventReader<TurnPolyIntoTarget>,
+) {
+    for _ in turn_poly_into_target_event_reader.iter() {
+        for (entity, mut transform, mesh_meta, fill_mat_handle) in poly_query.iter_mut() {
+            // remove all targets from world
+            for target in target_query.iter() {
+                commands.entity(target).despawn_recursive();
+            }
+            //
+            //
+            // change color
+            if let Some(material) = fill_materials.get_mut(&fill_mat_handle) {
+                material.color = globals.target_color.into();
+            }
+            //
+            //
+            //
+            // remove polygon component
+            commands.entity(entity).remove::<Polygon>().insert(Target {
+                path: mesh_meta.path.clone(),
+            });
+            //
+            //
+            // Move the polygon to the target position
+            *transform = Transform::from_translation(Vec2::new(300.0, 0.0).extend(0.0));
         }
     }
 }

@@ -3,6 +3,15 @@ PLAN
 TODO:
 
 
+0) get rid of ctrl + any key
+
+
+
+
+
+
+!!!) BEFORE WASM, change pos of window to default  !!!!
+
 
 1) a view for selecting a custom match and start a new level (with struct for the match
     poly_name, target_name, target_multiplier)
@@ -11,6 +20,7 @@ TODO:
 3) make Convexity section 
 
 5) match pairs of animal polygons and try to map them to each other
+
 
 
 

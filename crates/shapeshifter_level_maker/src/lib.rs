@@ -61,6 +61,13 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_event::<TestWinEvent>()
             .add_event::<SpawnPoly>()
             .add_event::<SpawnTarget>()
+            .add_event::<SpawnLevel>()
+            .add_event::<HasWonLevelEvent>()
+            .add_event::<PerformedCut>()
+            .add_event::<TurnPolyIntoTarget>()
+            .add_event::<SpawnTargetKeepTarget>()
+            .add_event::<SpawnPolyKeepPoly>()
+            //
             //
             //
             //
@@ -76,13 +83,11 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             //
             //
             //
-            .add_event::<SpawnLevel>()
-            .add_event::<HasWonLevelEvent>()
-            .add_event::<PerformedCut>()
             .insert_resource(Globals::default())
             .insert_resource(Cursor::default())
             .insert_resource(LoadedPolygonsRaw::default())
             .insert_resource(CurrentLevel::default())
+            //
             .add_plugin(bevy_easings::EasingsPlugin)
             .add_plugin(FillMesh2dPlugin)
             .add_plugin(TargetMesh2dPlugin)
@@ -97,6 +102,7 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_system(setup_mesh)
             .add_system(spawn_poly)
             .add_system(spawn_target)
+            .add_system(turn_poly_into_target)
             .add_system(record_mouse_events_system.exclusive_system().at_start())
             .add_system(direct_action)
             .add_system(glow_poly)
@@ -108,6 +114,7 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_system(move_path_point)
             .add_system(hover_path_point)
             .add_system(direct_release_action)
+            .add_system(check_cut_timer)
             // delete me please
             // .add_system(debug_input)
             .add_system(transform_poly.exclusive_system().at_end());
@@ -165,10 +172,27 @@ pub fn revert_to_init(
 
 //
 //
+// 0.3 seconds after a cut, the polygons is checked for collisions
+pub fn check_cut_timer(
+    mut collision_test_event: EventWriter<TestCollisionEvent>,
+    mut cut_timer: ResMut<CutTimer>,
+    time: Res<Time>,
+) {
+    if cut_timer.timer.tick(time.delta()).just_finished() {
+        for entity in cut_timer.entities.iter() {
+            collision_test_event.send(TestCollisionEvent(*entity));
+            // info!("cut timer finished");
+        }
+        cut_timer.entities.clear();
+    }
+}
+
+//
+//
 // To save programming time, we test all polygons against all other polygons when
 // any polygon is moved.
 pub fn test_collisions(
-    mut commands: Commands,
+    // mut commands: Commands,
     mut query: Query<
         (
             Entity,

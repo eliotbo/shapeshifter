@@ -7,7 +7,7 @@ use crate::cut::*;
 // use crate::load::QuickLoad;
 use crate::poly::{MakingPolygon, MakingSegment};
 // use crate::save::SaveMeshEvent;
-use crate::util::{Globals, MovingPathPoint};
+use crate::util::{Globals, MovingPathPoint, TurnPolyIntoTarget};
 // use crate::util::Globals;
 
 use lyon::tessellation::math::Point;
@@ -136,6 +136,7 @@ pub fn direct_action(
     // mut end_polygon: EventWriter<EndMakingPolygon>,
     // mut delete_event: EventWriter<DeleteEvent>,
     mut action_event: EventWriter<Action>,
+    mut turn_poly_into_target_event_writer: EventWriter<TurnPolyIntoTarget>,
     // mut quicksave_event_writer: EventWriter<SaveMeshEvent>,
     // mut end_cut_segment: EventWriter<EndCutSegment>,
     cursor: Res<Cursor>,
@@ -167,7 +168,11 @@ pub fn direct_action(
     let making_poly = making_poly_query.iter().next().is_some();
 
     // only used for pattern matching
+    let pressing_a = keyboard_input.pressed(KeyCode::A);
     let pressing_q = keyboard_input.pressed(KeyCode::Q);
+    let pressing_c = keyboard_input.pressed(KeyCode::C);
+    let pressing_s = keyboard_input.pressed(KeyCode::S);
+    let pressing_e = keyboard_input.pressed(KeyCode::E);
 
     let pressed_g = keyboard_input.just_pressed(KeyCode::G);
     let _pressed_h = keyboard_input.just_pressed(KeyCode::H);
@@ -190,7 +195,16 @@ pub fn direct_action(
         (true, true, true) if pressed_delete => action_event.send(Action::DeleteTarget),
         //
         //
-        //
+        //select
+        (false, false, false)
+            if mouse_just_pressed && !making_poly && !making_cut && pressing_s =>
+        {
+            info!("select");
+            action_event.send(Action::SelectPoly {
+                pos: pos,
+                keep_selected: pressing_a,
+            });
+        }
         //
         //
         // cut on mouse release
@@ -205,6 +219,14 @@ pub fn direct_action(
         }
 
         // Start a cut
+        // cannot start a cut segment if one is already being made
+        (false, false, false)
+            if pressing_c && mouse_just_pressed && making_cut_query.iter().count() == 0 =>
+        {
+            action_event.send(Action::StartMakingCutSegment { start: pos });
+        }
+
+        // Start a cut as well!
         // cannot start a cut segment if one is already being made
         (false, true, false) if mouse_just_pressed && making_cut_query.iter().count() == 0 => {
             action_event.send(Action::StartMakingCutSegment { start: pos });
@@ -256,8 +278,9 @@ pub fn direct_action(
         (false, true, false) if pressed_l => {
             action_event.send(Action::QuickLoad { maybe_name: None })
         }
-        (false, true, false) if pressed_t => {
-            action_event.send(Action::QuickLoadTarget { maybe_name: None })
+        (false, false, false) if pressing_e && pressed_t => {
+            turn_poly_into_target_event_writer.send(TurnPolyIntoTarget {});
+            // action_event.send(Action::QuickLoadTarget { maybe_name: None })
         }
 
         //
@@ -288,14 +311,9 @@ pub fn direct_action(
             action_event.send(Action::AddPointAt { pos: pos });
         }
 
-        (true, true, space) if mouse_just_pressed && !making_poly && !making_cut => {
-            action_event.send(Action::SelectPoly {
-                pos: pos,
-                keep_selected: space,
-            });
+        (false, false, false) if pressed_delete && pressing_a => {
+            action_event.send(Action::DeleteAll)
         }
-
-        (true, true, false) if pressed_delete => action_event.send(Action::DeleteAll),
 
         (_, _, _) if pressed_delete => action_event.send(Action::DeleteSelected),
 
@@ -313,7 +331,7 @@ pub fn direct_action(
         //
         //
         // translation (q is for moving points in level-making)
-        (false, false, false) if mouse_just_pressed && !pressing_q => {
+        (false, false, false) if mouse_just_pressed && !pressing_q && !making_cut => {
             action_event.send(Action::MaybeTranslatePoly)
         }
         //

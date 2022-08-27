@@ -8,6 +8,7 @@ use crate::util::*;
 use bevy::{
     prelude::*,
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+    utils::Duration,
 };
 
 use lyon::algorithms::area::*;
@@ -48,11 +49,26 @@ impl PolyPoint {
     }
 }
 
+pub struct CutTimer {
+    pub timer: Timer,
+    pub entities: Vec<Entity>,
+}
+
+impl Default for CutTimer {
+    fn default() -> CutTimer {
+        CutTimer {
+            timer: Timer::new(Duration::from_millis(500), false),
+            entities: Vec::new(),
+        }
+    }
+}
+
 pub struct CutPlugin;
 
 impl Plugin for CutPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(RemainingCuts { remaining: 1000 })
+            .init_resource::<CutTimer>()
             .add_system(start_cut_segment)
             .add_system(end_cut_segment)
             .add_system(making_cut_segment)
@@ -60,6 +76,12 @@ impl Plugin for CutPlugin {
             .add_system(perform_cut);
     }
 }
+
+// pub fn check_overlap_after_cut(
+
+// ) {
+
+// }
 
 pub fn start_cut_segment(
     mut commands: Commands,
@@ -210,6 +232,7 @@ pub fn perform_cut(
         With<Polygon>,
     >,
     mut performed_cut_event_writer: EventWriter<PerformedCut>,
+    mut cut_timer: ResMut<CutTimer>,
 ) {
     for (cut_entity, cut) in cut_query.iter() {
         commands.entity(cut_entity).despawn();
@@ -471,6 +494,9 @@ pub fn perform_cut(
 
                 new_entities.push(new_entity);
 
+                cut_timer.timer = Timer::new(Duration::from_millis(300), false);
+                cut_timer.entities.push(new_entity);
+
                 //
                 //
                 // TODO: contour
@@ -491,6 +517,7 @@ pub fn perform_cut(
             if area_test_passed {
                 commands.entity(poly_entity).despawn();
                 do_remove_cut_entity = false;
+
                 // return;
             } else {
                 // remove all newly created polygons

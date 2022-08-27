@@ -19,7 +19,7 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameLevels::default())
-            .insert_resource(Level::Simplicity(5))
+            .insert_resource(Level::Simplicity(0))
             .insert_resource(UnlockedLevels { levels: Vec::new() })
             .insert_resource(WholeGameCuts { cuts: 0 })
             .add_event::<NextLevel>()
@@ -139,7 +139,7 @@ fn show_pause_menu(
     mut query: Query<Entity, With<PauseMenu>>,
     mut spawn_pause_menu_event_writer: EventWriter<SpawnPauseMenu>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Escape) {
+    if keyboard_input.just_pressed(KeyCode::Escape) || keyboard_input.just_pressed(KeyCode::M) {
         if query.iter().count() == 0 {
             spawn_pause_menu_event_writer.send(SpawnPauseMenu);
         } else {
@@ -192,37 +192,62 @@ fn next_level(
 ) {
     if let Some(_) = next_level_event_reader.iter().next() {
         match *current_level {
+            //
+            //
+            //
+            //
+            //
             Level::Simplicity(level) => {
-                // if level + 1 == 6 {
-                //     won_the_game_event_writer.send(WonTheGame);
-                //     return;
-                // }
+                //
                 if level < game_levels.simplicity.len() - 1 {
                     current_level.simplicity(level + 1);
                     spawn_level_event_writer.send(game_levels.simplicity[level + 1].clone());
                     send_tutorial_text(level + 1, &mut spawn_instruction_event_writer);
+                    //
                 } else {
-                    current_level.convexity(0);
-                    spawn_level_event_writer.send(game_levels.convexity[0].clone());
+                    if let Some(_) = game_levels.convexity.get(0) {
+                        current_level.convexity(0);
+                        spawn_level_event_writer.send(game_levels.convexity[0].clone());
+                    } else {
+                        won_the_game_event_writer.send(WonTheGame);
+                    }
                 }
             }
+            //
+            //
+            //
+            //
+            //
             Level::Convexity(level) => {
                 if level < game_levels.convexity.len() - 1 {
                     current_level.convexity(level + 1);
                     spawn_level_event_writer.send(game_levels.convexity[level + 1].clone());
+                    //
+                    //
                 } else {
-                    current_level.perplexity(0);
-                    spawn_level_event_writer.send(game_levels.perplexity[0].clone());
+                    if let Some(level) = game_levels.perplexity.get(0) {
+                        current_level.perplexity(0);
+                        spawn_level_event_writer.send(level.clone());
+                    } else {
+                        won_the_game_event_writer.send(WonTheGame);
+                    }
+                    // spawn_level_event_writer.send(game_levels.perplexity[0].clone());
                 }
-                spawn_level_event_writer.send(game_levels.simplicity[level].clone());
             }
+            //
+            //
             Level::Perplexity(level) => {
                 if level < game_levels.perplexity.len() - 1 {
                     current_level.perplexity(level + 1);
                     spawn_level_event_writer.send(game_levels.perplexity[level + 1].clone());
                 } else {
                     current_level.complexity(0);
-                    spawn_level_event_writer.send(game_levels.complexity[0].clone());
+                    // spawn_level_event_writer.send(game_levels.complexity[0].clone());
+                    if let Some(level) = game_levels.complexity.get(0) {
+                        spawn_level_event_writer.send(level.clone());
+                    } else {
+                        won_the_game_event_writer.send(WonTheGame);
+                    }
                 }
             }
             Level::Complexity(level) => {
@@ -399,6 +424,6 @@ fn game_setup(
     game_levels: ResMut<GameLevels>,
     mut spawn_instruction_event_writer: EventWriter<SpawnInstruction>,
 ) {
-    spawn_level_event_writer.send(game_levels.simplicity[5].clone());
+    spawn_level_event_writer.send(game_levels.simplicity[0].clone());
     send_tutorial_text(0, &mut spawn_instruction_event_writer);
 }

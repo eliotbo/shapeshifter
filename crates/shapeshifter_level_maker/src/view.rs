@@ -141,12 +141,12 @@ pub fn transform_poly(
 ) {
     for (_, mut transform, rotating, _) in queries.p0().iter_mut() {
         // println!("rotating");
-        let diag_mouse_dist = cursor.position.y + cursor.position.x
-            - cursor.last_right_click_position.y
-            - cursor.last_right_click_position.x;
+        let diag_mouse_dist = cursor.position.y + -cursor.last_right_click_position.y;
+        //
+        //
         // latch the final angle to fixed angles at every pi/25 radians
         let free_angle = -diag_mouse_dist * 0.0035 + rotating.starting_angle;
-        // let angle = (free_angle / globals.min_turn_angle).round() * globals.min_turn_angle;
+
         let angle = free_angle;
         transform.rotation = Quat::from_rotation_z(angle);
     }

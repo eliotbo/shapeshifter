@@ -8,7 +8,7 @@ mod splash;
 use bevy::prelude::*;
 use shapeshifter_level_maker::ShapeshifterLevelMakerPlugin;
 
-// use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 
@@ -24,21 +24,22 @@ enum GameState {
 // One of the two settings that can be set through the menu. It will be a resource in the app
 #[derive(Debug, Component, PartialEq, Eq, Clone, Copy)]
 struct Volume(u32);
-
+// 1280x720
 fn main() {
     App::new()
         //
         //
         //
-        // .insert_resource(WindowDescriptor {
-        //     title: "pen".to_string(),
-        //     width: 1200.,
-        //     height: 800.,
-        //     present_mode: bevy::window::PresentMode::Immediate,
-        //     ..Default::default()
-        // })
-        // .add_plugin(LogDiagnosticsPlugin::default())
-        // .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .insert_resource(WindowDescriptor {
+            title: "pen".to_string(),
+            width: 1280.,
+            height: 720.,
+            position: WindowPosition::At(Vec2::new(500., 200.)),
+            present_mode: bevy::window::PresentMode::Immediate,
+            ..Default::default()
+        })
+        .add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         //
         //
         //
@@ -61,6 +62,7 @@ fn main() {
 
 fn setup(mut commands: Commands) {
     commands.spawn_bundle(Camera2dBundle::default());
+    // info!("{:?}", window);
 }
 
 // mod game {

@@ -135,7 +135,7 @@ pub fn add_point_to_poly(
     mut action_event_reader: EventReader<Action>,
 ) {
     if let Some(Action::AddPointAt { pos }) = action_event_reader.iter().next() {
-        info!("add point at {:?}", pos);
+        // info!("add point at {:?}", pos);
         //
         //
         //
@@ -161,10 +161,10 @@ pub fn add_point_to_poly(
                 );
 
                 let dist = distance_from_point_to_segment(*pos, segment);
-                info!("distance from point to segment: {:?}", dist);
+                // info!("distance from point to segment: {:?}", dist);
 
                 if dist < min_distance {
-                    info!("new min distance: {}", dist);
+                    // info!("new min distance: {}", dist);
                     min_distance = dist;
                     closest_segment = k;
                 }
@@ -212,7 +212,7 @@ pub fn add_point_to_poly(
                 .insert(mesh_meta.clone())
                 .id();
 
-            info!("new poly entity: {:?}", _new_poly_entity);
+            // info!("new poly entity: {:?}", _new_poly_entity);
             //
             // remove old poly
             commands.entity(entity).despawn_recursive();
@@ -627,7 +627,7 @@ pub fn move_path_point(
         //
         //
         // let l = mesh_meta.points.len();
-        println!("START: {:#?}", mesh_meta.points);
+        // println!("START: {:#?}", mesh_meta.points);
 
         // if let Some(what) = mesh_meta.path.iter().nth(moving_path_point.index) {
         //     info!("{:?}", what.from());

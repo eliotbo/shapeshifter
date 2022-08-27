@@ -392,7 +392,7 @@ fn menu_action(
                     game_state.set(GameState::Game).unwrap();
                     menu_state.set(MenuState::Disabled).unwrap();
                     if let Some(sink) = audio_sinks.get(&music_controller.0) {
-                        sink.pause();
+                        sink.stop();
                     }
                 }
                 MenuButtonAction::GoToCity => menu_state.set(MenuState::Settings).unwrap(),
