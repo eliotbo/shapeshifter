@@ -342,8 +342,9 @@ pub fn glow_design_poly(
     mut materials: ResMut<Assets<FillMesh2dMaterial>>,
     // mut spawn_polykeep_event_writer: EventWriter<SpawnDesignPoly>,
     mut spawn_polykeep_event_writer: EventWriter<SpawnPolyKeepPoly>,
+    mut spawn_target_event_writer: EventWriter<SpawnTarget>,
 ) {
-    // let left_mouse_click = mouse_button_input.just_pressed(MouseButton::Left);
+    let left_mouse_click = mouse_button_input.just_pressed(MouseButton::Left);
     let right_mouse_click = mouse_button_input.just_pressed(MouseButton::Right);
 
     let ctrl = keyboard_input.pressed(KeyCode::LControl);
@@ -379,11 +380,19 @@ pub fn glow_design_poly(
                 material.show_com = 1.0;
             }
 
-            if is_inside_poly && right_mouse_click {
+            if is_inside_poly && left_mouse_click {
                 // info!("inside poly: {}", mesh_meta.name);
                 spawn_polykeep_event_writer.send(SpawnPolyKeepPoly {
                     polygon: mesh_meta.name.clone(),
                     polygon_multiplier: 1.0,
+                });
+            }
+
+            if is_inside_poly && right_mouse_click {
+                // info!("inside poly: {}", mesh_meta.name);
+                spawn_target_event_writer.send(SpawnTarget {
+                    target: mesh_meta.name.clone(),
+                    target_multiplier: 1.0,
                 });
             }
         }
