@@ -36,6 +36,7 @@ impl Plugin for GamePlugin {
             .add_system_set(SystemSet::on_enter(GameState::CityTitle).with_system(spawn_city_title))
             .add_system_set(SystemSet::on_update(GameState::CityTitle).with_system(despawn_city))
             .add_system_set(SystemSet::on_exit(GameState::Game).with_system(delete_game_entities))
+            // .add_system_set(SystemSet::on_enter(GameState::Victory).with_system())
             .add_system_set(
                 SystemSet::on_enter(GameState::Game)
                     .with_system(game_setup)
@@ -115,8 +116,8 @@ fn show_current_level_int(
             // let level_int = game_levels.to_int(&current_level.level.clone());
 
             if let Some(mut section) = text.sections.get_mut(0) {
-                info!("level_int: {:?}", &current_level.level.clone());
-                let level_int = game_levels.to_int(&current_level.level.clone());
+                // info!("level_int: {:?}", &current_level.level.clone());
+                let level_int = game_levels.to_int(&current_level.level.clone()) + 1;
                 let label = format!("Level {} / {}", level_int, game_levels.get_total_levels());
                 section.value = label;
             }
@@ -369,11 +370,9 @@ fn previous_level(
                     current_level.level.simplicity(level - 1);
                     spawn_level_event_writer.send(game_levels.simplicity[level - 1].clone());
                 } else {
-                    current_level
-                        .level
-                        .simplicity(game_levels.simplicity.len() - 1);
+                    current_level.level.tutorial(game_levels.tutorial.len() - 1);
                     spawn_level_event_writer
-                        .send(game_levels.simplicity[game_levels.tutorial.len() - 1].clone());
+                        .send(game_levels.tutorial[game_levels.tutorial.len() - 1].clone());
                 }
             }
             Level::Convexity(level) => {

@@ -102,9 +102,9 @@ pub fn send_tutorial_text(
     spawn_instruction_event_writer: &mut EventWriter<SpawnInstruction>,
 ) {
     let text = match tutorial_level {
-        0 => "The goal is to fit the whole polygon inside of the target area",
+        0 => "The goal is to fit the whole polygon inside the target area",
         // 1 => "Rotate the polygon using either the right mouse button or the scroll wheel",
-        1 => "Rotate the polygon by holding right click, move away for more precision
+        1 => "Rotate the polygon by holding right click, then move away for more precision
 Or scroll over it",
         2 => "Perform a cut by holding either the Ctrl key or the C key, and then using the mouse",
         3 => "The number of remaining cuts for the level is shown in the top left corner",

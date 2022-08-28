@@ -4,8 +4,8 @@ PLAN
 TODO:
 
 0) add sounds in options
-0) see level number
-00) centralize font with resource
+
+
 
 
 000)    chocolate bar
@@ -13,10 +13,6 @@ TODO:
 
 1) nicer splash screen
 
-2) tetris like arrows (holding shift make edges stick to each other)
-3) make Convexity section 
-
-5) match pairs of animal polygons and try to map them to each other
 
 6) new font
 

@@ -38,34 +38,45 @@ pub fn spawn_won_screen(
     // asset_server: Res<AssetServer>,
     mut won_the_game_event_reader: EventReader<WonTheGame>,
     fonts: Res<FontHandles>,
+    sound_map: Res<crate::menu::SoundMap>,
+    audio: Res<Audio>,
 ) {
     //
     if let Some(_) = won_the_game_event_reader.iter().next() {
         // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
         let font = fonts.font.clone();
 
-        let text = format!("You won the game with {} cuts!", whole_game_cut.cuts);
+        sound_map.play("final_victory", &audio);
+
+        let text = format!(
+            "You solved all 
+the puzzles!
+# cuts: {}",
+            whole_game_cut.cuts
+        );
         let text_style = TextStyle {
             font: font.clone(),
-            font_size: 30.0,
-            color: TEXT_COLOR,
+            font_size: 60.0,
+            color: Color::TEAL,
+        };
+
+        let start_style = Style {
+            margin: UiRect::all(Val::Auto),
+            flex_direction: FlexDirection::RowReverse,
+            // align_items: AlignItems::FlexEnd,
+            justify_content: JustifyContent::Center,
+            position_type: PositionType::Absolute,
+            position: UiRect {
+                right: Val::Px(50.0),
+                top: Val::Px(-25.0),
+                ..default()
+            },
+            ..default()
         };
 
         commands
             .spawn_bundle(NodeBundle {
-                style: Style {
-                    margin: UiRect::all(Val::Auto),
-                    flex_direction: FlexDirection::ColumnReverse,
-                    align_items: AlignItems::FlexEnd,
-                    justify_content: JustifyContent::FlexEnd,
-                    position_type: PositionType::Absolute,
-                    position: UiRect {
-                        // left: Val::Px(50.0),
-                        top: Val::Px(50.0),
-                        ..default()
-                    },
-                    ..default()
-                },
+                style: start_style,
                 color: Color::rgba(0., 0., 0., 0.).into(),
                 ..default()
             })
@@ -275,6 +286,7 @@ pub fn spawn_pause_menu(
                         ..default()
                     },
                     color: Color::PURPLE.into(),
+                    // transform: Transform::from_translation(Vec3::new(0.0, 0.0, 111.0)),
                     ..default()
                 })
                 .insert(PauseMenu)
@@ -356,7 +368,7 @@ pub fn spawn_current_level(
     // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
     let font = fonts.font.clone();
 
-    let level_int = game_levels.to_int(&current_level.level.clone());
+    let level_int = game_levels.to_int(&current_level.level.clone()) + 1;
     let label = format!("Level {} / {}", level_int, game_levels.get_total_levels());
 
     commands
@@ -554,6 +566,7 @@ pub fn spawn_next_level_button(
                     ..default()
                 },
                 color: Color::PURPLE.into(),
+                // transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
                 // visibility: Visibility { is_visible: false },
                 // computed_visibility: ComputedVisibility::not_visible(),
                 ..default()

@@ -221,6 +221,8 @@ fn menu_setup(
     // let victory_chord4 = asset_server.load("sounds/Victory Sounds/Victory Chord 4.ogg");
     // let victory_ukulele = asset_server.load("sounds/Victory Sounds/Victory Ukulele.ogg");
 
+    let final_victory = asset_server.load("sounds/Victory Finale.ogg");
+
     sound_map.insert(
         "click".to_string(),
         vec![click2, click3, click4, click5, click7],
@@ -247,6 +249,8 @@ fn menu_setup(
             // victory_ukulele,
         ],
     );
+
+    sound_map.insert("final_victory".to_string(), vec![final_victory]);
 
     commands.insert_resource(SoundMap { map: sound_map });
 }
