@@ -13,7 +13,7 @@ TODO:
 
 5) match pairs of animal polygons and try to map them to each other
 
-
+6) new font
 
 
 
@@ -93,7 +93,7 @@ POLISHING
             player presses an arrow key and the polygon translates as far as possible in that direction
             ctrl plus arrow rotates as much as possible
 
-    Upon win, extend the target area so that it becomes the whole play area
+
 
  
 

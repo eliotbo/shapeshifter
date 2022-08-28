@@ -1,4 +1,4 @@
-use crate::game;
+// use crate::game;
 use crate::levels;
 
 use bevy::audio::AudioSink;
@@ -7,18 +7,11 @@ use shapeshifter_level_maker::util::{PerformedCut, SpawnLevel};
 
 use super::{despawn_screen, GameState, TEXT_COLOR};
 
-// This plugin manages the menu, with 5 different screens:
-// - a main menu with "New Game", "Settings", "Quit"
-// - a settings menu with two submenus and a back button
-// - two settings screen with a setting that can be set and a back button
 pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app
-            // .insert_resource(MenuMusic { handle: None })
-            // At start, the menu is not enabled. This will be changed in `menu_setup` when
-            // entering the `GameState::Menu` state.
             // Current screen in the menu is handled by an independent state from `GameState`
             .add_state(MenuState::Disabled)
             .add_system_set(SystemSet::on_enter(GameState::Menu).with_system(menu_setup))
@@ -35,32 +28,6 @@ impl Plugin for MenuPlugin {
                 SystemSet::on_exit(MenuState::Settings)
                     .with_system(despawn_screen::<OnSettingsMenuScreen>),
             )
-            // // Systems to handle the display settings screen
-            // .add_system_set(
-            //     SystemSet::on_enter(MenuState::SettingsDisplay)
-            //         .with_system(display_settings_menu_setup),
-            // )
-            // .add_system_set(
-            //     SystemSet::on_update(MenuState::SettingsDisplay)
-            //         .with_system(setting_button::<DisplayQuality>),
-            // )
-            // .add_system_set(
-            //     SystemSet::on_exit(MenuState::SettingsDisplay)
-            //         .with_system(despawn_screen::<OnDisplaySettingsMenuScreen>),
-            // )
-            // Systems to handle the sound settings screen
-            // .add_system_set(
-            //     SystemSet::on_enter(MenuState::SettingsSound)
-            //         .with_system(sound_settings_menu_setup),
-            // )
-            // .add_system_set(
-            //     SystemSet::on_update(MenuState::SettingsSound)
-            //         .with_system(setting_button::<Volume>),
-            // )
-            // .add_system_set(
-            //     SystemSet::on_exit(MenuState::SettingsSound)
-            //         .with_system(despawn_screen::<OnSoundSettingsMenuScreen>),
-            // )
             // Common systems to all screens that handles buttons behaviour
             .add_system_set(
                 SystemSet::on_update(GameState::Menu)
@@ -71,14 +38,16 @@ impl Plugin for MenuPlugin {
     }
 }
 
+pub struct FontHandles {
+    pub font: Handle<Font>,
+}
+
 // State used for the current menu screen
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 enum MenuState {
     Main,
     // Design,
     Settings,
-    // SettingsDisplay,
-    // SettingsSound,
     Disabled,
 }
 // Tag component used to tag buttons that cannot be interacted with
@@ -92,14 +61,6 @@ struct OnMainMenuScreen;
 // Tag component used to tag entities added on the settings menu screen
 #[derive(Component)]
 struct OnSettingsMenuScreen;
-
-// Tag component used to tag entities added on the display settings menu screen
-#[derive(Component)]
-struct OnDisplaySettingsMenuScreen;
-
-// Tag component used to tag entities added on the sound settings menu screen
-#[derive(Component)]
-struct OnSoundSettingsMenuScreen;
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
@@ -310,6 +271,10 @@ fn main_menu_setup(
     });
 
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+    let fonts = FontHandles { font: font.clone() };
+    commands.insert_resource(fonts);
+
     // Common style for all buttons on the screen
     let button_style = Style {
         size: Size::new(Val::Px(250.0), Val::Px(65.0)),

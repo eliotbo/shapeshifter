@@ -139,10 +139,9 @@ impl Default for GameLevels {
             SpawnLevel::new4("gege1", "004_simplicity_square_parallel", 3, 1.1),
             SpawnLevel::new4("gege_turtle", "turtle1", 3, 1.3),
             SpawnLevel::new4("cat3", "otter1", 3, 1.2), // convexity
-            SpawnLevel::new4("eggplant", "tree1", 3, 1.3),
+            SpawnLevel::new4("squirrel1", "bird1", 3, 1.18), // convexity
         ];
         let perplexity = vec![
-            SpawnLevel::new4("squirrel1", "bird1", 3, 1.18), // convexity
             SpawnLevel::new4("002_simplicity_square", "tree1", 1, 1.25),
             SpawnLevel::new4("giraffe1", "cat2", 3, 1.35),
             SpawnLevel::new4("spade", "p", 2, 1.15), // perplexity

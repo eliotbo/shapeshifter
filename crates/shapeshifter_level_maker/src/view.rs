@@ -32,7 +32,7 @@ pub fn glow_poly(
             &Handle<FillMesh2dMaterial>,
             &Transform,
             &MeshMeta,
-            Option<Or<(&Rotating, &Translating)>>,
+            Option<Or<(&MaybeRotating, &Translating)>>,
         ),
         With<Polygon>,
     >,
@@ -107,7 +107,7 @@ pub fn glow_poly(
                     });
                 }
                 PossibleMoves::Rotation(angle) => {
-                    commands.entity(entity).insert(Rotating {
+                    commands.entity(entity).insert(MaybeRotating {
                         starting_angle: angle,
                     });
                 }
@@ -125,6 +125,38 @@ pub fn glow_poly(
     }
 }
 
+//
+// if user right clicked on a polygon and dragged the mouse further than 100 px aways,
+// this system with be called and the polygon will turn
+pub fn rotate_poly(
+    mut commands: Commands,
+    mouse_button_input: Res<Input<MouseButton>>,
+    cursor: Res<Cursor>,
+    // keyboard_input: Res<Input<KeyCode>>,
+    mut query: Query<(Entity, &mut Transform, &Rotating), With<Polygon>>,
+    // mut materials: ResMut<Assets<FillMesh2dMaterial>>,
+    mut collision_test_writer: EventWriter<TestCollisionEvent>,
+) {
+    for (_, mut transform, rotating) in query.iter_mut() {
+        // let v1 = (cursor.last_right_click_position - transform.translation.truncate()).normalize();
+
+        let v1 = rotating.mouse_vec;
+        let v2 = cursor.position - cursor.last_right_click_position;
+        let delta_angle = v1.angle_between(v2);
+
+        let new_angle = delta_angle + rotating.starting_angle;
+        transform.rotation = Quat::from_rotation_z(new_angle);
+    }
+
+    if mouse_button_input.just_released(MouseButton::Right) {
+        // remove Rotating
+        for (entity, _, _) in query.iter_mut() {
+            commands.entity(entity).remove::<Rotating>();
+            collision_test_writer.send(TestCollisionEvent(entity));
+        }
+    }
+}
+
 // TODO: get rid of cursor here
 // translate and rotate Polygon using right mouse button
 pub fn transform_poly(
@@ -132,30 +164,43 @@ pub fn transform_poly(
     mouse_button_input: Res<Input<MouseButton>>,
     cursor: Res<Cursor>,
     mut queries: ParamSet<(
-        Query<(Entity, &mut Transform, &Rotating, &MeshMeta), With<Polygon>>,
+        // Query<(Entity, &mut Transform, &MaybeRotating, &MeshMeta), With<Polygon>>,
+        Query<(Entity, &MaybeRotating), With<Polygon>>,
         Query<(Entity, &mut Transform, &Translating), With<Polygon>>,
     )>,
     // globals: Res<Globals>,
     mut collision_test_writer: EventWriter<TestCollisionEvent>,
 ) {
-    for (_, mut transform, rotating, _) in queries.p0().iter_mut() {
-        //
-        //
-        // rotate using the center of mass of the polygon vs the mouse position
-        let v1 = (cursor.last_right_click_position - transform.translation.truncate()).normalize();
-        let v2 = (cursor.position - transform.translation.truncate()).normalize();
-        let delta_angle = v1.angle_between(v2);
+    // for (entity, mut transform, maybe_rotating, _) in queries.p0().iter_mut() {
+    for (entity, maybe_rotating) in queries.p0().iter_mut() {
+        // //
+        // //
+        // // rotate using the center of mass of the polygon vs the mouse position
+        // let v1 = (cursor.last_right_click_position - transform.translation.truncate()).normalize();
+        // let v2 = (cursor.position - transform.translation.truncate()).normalize();
+        // let delta_angle = v1.angle_between(v2);
 
+        let mouse_vec = cursor.position - cursor.last_right_click_position;
+
+        if mouse_vec.length() > 100.0 {
+            commands
+                .entity(entity)
+                .insert(Rotating {
+                    starting_angle: maybe_rotating.starting_angle,
+                    mouse_vec,
+                })
+                .remove::<MaybeRotating>();
+        }
         //
         //
         // rotate using the y axis
-        // let diag_mouse_dist = cursor.position.y + -cursor.last_right_click_position.y;
+        // let diag_mouse_dist = cursor.position.y - cursor.last_right_click_position.y;
         // let free_angle = -diag_mouse_dist * 0.0035 + rotating.starting_angle;
 
-        let free_angle = delta_angle + rotating.starting_angle;
+        // let free_angle = delta_angle + rotating.starting_angle;
 
-        let angle = free_angle;
-        transform.rotation = Quat::from_rotation_z(angle);
+        // let angle = free_angle;
+        // transform.rotation = Quat::from_rotation_z(angle);
     }
 
     for (_, mut transform, translating) in queries.p1().iter_mut() {
@@ -174,14 +219,6 @@ pub fn transform_poly(
             commands.entity(entity).remove::<Translating>();
             collision_test_writer.send(TestCollisionEvent(entity));
             // info!("sending collision after translating");
-        }
-    }
-
-    if mouse_button_input.just_released(MouseButton::Right) {
-        // remove Rotating
-        for (entity, _, _, _) in queries.p0().iter_mut() {
-            commands.entity(entity).remove::<Rotating>();
-            collision_test_writer.send(TestCollisionEvent(entity));
         }
     }
 }

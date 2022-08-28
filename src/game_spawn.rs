@@ -6,6 +6,7 @@ use super::TEXT_COLOR;
 
 use crate::game::{GameButtonAction, WholeGameCuts, WonTheGame};
 use crate::levels::*;
+use crate::menu::FontHandles;
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 
@@ -33,12 +34,14 @@ pub struct SpawnInstruction {
 pub fn spawn_won_screen(
     mut commands: Commands,
     whole_game_cut: Res<WholeGameCuts>,
-    asset_server: Res<AssetServer>,
+    // asset_server: Res<AssetServer>,
     mut won_the_game_event_reader: EventReader<WonTheGame>,
+    fonts: Res<FontHandles>,
 ) {
     //
     if let Some(_) = won_the_game_event_reader.iter().next() {
-        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        let font = fonts.font.clone();
 
         let text = format!("You won the game with {} cuts!", whole_game_cut.cuts);
         let text_style = TextStyle {
@@ -80,12 +83,14 @@ pub fn spawn_won_screen(
 
 pub fn spawn_instruction(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    // asset_server: Res<AssetServer>,
     mut spawn_instruction_event_reader: EventReader<SpawnInstruction>,
+    fonts: Res<FontHandles>,
 ) {
     if let Some(instruction) = spawn_instruction_event_reader.iter().next() {
         //
-        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        let font = fonts.font.clone();
         let text_style = TextStyle {
             font: font.clone(),
             font_size: 30.0,
@@ -123,11 +128,20 @@ pub fn spawn_instruction(
     }
 }
 
+// pub fn spawn_city_title(
+//     mut commands: Commands,
+//     asset_server: Res<AssetServer>,
+//     pause_menu_query: Query<Entity, With<PauseMenu>>,
+//     mut spawn_city_title_event_reader: EventReader<SpawnCityTitle>,
+// ) {
+// }
+
 pub fn spawn_pause_menu(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    // asset_server: Res<AssetServer>,
     pause_menu_query: Query<Entity, With<PauseMenu>>,
     mut toggle_pause_menu_event_reader: EventReader<TogglePauseMenu>,
+    fonts: Res<FontHandles>,
 ) {
     for _ in toggle_pause_menu_event_reader.iter() {
         if let Some(entity) = pause_menu_query.iter().next() {
@@ -135,7 +149,8 @@ pub fn spawn_pause_menu(
             info!("Despawning pause menu");
         } else {
             info!("spawning pause menu");
-            let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+            // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+            let font = fonts.font.clone();
             // Common style for all buttons on the screen
             let button_style = Style {
                 size: Size::new(Val::Px(250.0), Val::Px(65.0)),
@@ -239,11 +254,13 @@ pub struct LevelInt;
 
 pub fn spawn_current_level(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    // asset_server: Res<AssetServer>,
     game_levels: Res<GameLevels>,
     current_level: Res<crate::levels::CurrentLevel>,
+    fonts: Res<FontHandles>,
 ) {
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    let font = fonts.font.clone();
 
     let level_int = game_levels.to_int(&current_level.level.clone());
     let label = format!("Level {} / {}", level_int, game_levels.get_total_levels());
@@ -289,12 +306,14 @@ pub fn spawn_current_level(
 
 pub fn spawn_remaining_cuts_label(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    // asset_server: Res<AssetServer>,
     remaining_cuts: ResMut<RemainingCuts>,
+    fonts: Res<FontHandles>,
 ) {
     //
     //
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    let font = fonts.font.clone();
 
     let label = format!("Cuts: {}", remaining_cuts.remaining);
 
@@ -334,10 +353,12 @@ pub fn spawn_remaining_cuts_label(
 
 pub fn spawn_options_button(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    // asset_server: Res<AssetServer>,
+    fonts: Res<FontHandles>,
     // mut spawn_next_level_button_event_reader: EventReader<SpawnNextLevelButton>,
 ) {
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    let font = fonts.font.clone();
 
     let button_style = Style {
         size: Size::new(Val::Px(150.0), Val::Px(65.0)),
@@ -394,8 +415,9 @@ pub fn spawn_options_button(
 
 pub fn spawn_next_level_button(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    // asset_server: Res<AssetServer>,
     mut spawn_next_level_button_event_reader: EventReader<SpawnNextLevelButton>,
+    fonts: Res<FontHandles>,
 ) {
     //
 
@@ -405,7 +427,8 @@ pub fn spawn_next_level_button(
     // }
 
     if let Some(_) = spawn_next_level_button_event_reader.iter().next() {
-        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        let font = fonts.font.clone();
 
         let button_style = Style {
             size: Size::new(Val::Px(150.0), Val::Px(65.0)),
