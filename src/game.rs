@@ -25,12 +25,16 @@ impl Plugin for GamePlugin {
             })
             .insert_resource(WholeGameCuts { cuts: 0 })
             .init_resource::<WinSoundTimer>()
+            .init_resource::<CityTitleTimer>()
             .add_event::<NextLevel>()
             .add_event::<PreviousLevel>()
             .add_event::<WonTheGame>()
             .add_event::<TogglePauseMenu>()
             .add_event::<SpawnNextLevelButton>()
             .add_event::<SpawnInstruction>()
+            // .add_event::<SpawnCityTitle>()
+            .add_system_set(SystemSet::on_enter(GameState::CityTitle).with_system(spawn_city_title))
+            .add_system_set(SystemSet::on_update(GameState::CityTitle).with_system(despawn_city))
             .add_system_set(SystemSet::on_exit(GameState::Game).with_system(delete_game_entities))
             .add_system_set(
                 SystemSet::on_enter(GameState::Game)
@@ -227,6 +231,8 @@ fn next_level(
     mut spawn_level_event_writer: EventWriter<SpawnLevel>,
     mut spawn_instruction_event_writer: EventWriter<SpawnInstruction>,
     mut unlocked_cities: ResMut<UnlockedCities>,
+    mut game_state: ResMut<State<crate::GameState>>,
+    // mut spawn_city_title_event_writer: EventWriter<SpawnCityTitle>,
 ) {
     if let Some(_) = next_level_event_reader.iter().next() {
         match current_level.level {
@@ -241,13 +247,21 @@ fn next_level(
                     current_level.level.simplicity(level + 1);
                     spawn_level_event_writer.send(game_levels.simplicity[level + 1].clone());
                     send_tutorial_text(level + 1, &mut spawn_instruction_event_writer);
+
                     //
                 } else {
                     if let Some(_) = game_levels.convexity.get(0) {
                         current_level.level.convexity(0);
-                        spawn_level_event_writer.send(game_levels.convexity[0].clone());
                         unlocked_cities.cities.push(City::Convexity);
+                        game_state.set(crate::GameState::CityTitle).unwrap();
+
+                        // spawn_city_title_event_writer.send(SpawnCityTitle {
+                        //     city: City::Convexity,
+                        // });
+
+                        // spawn_level_event_writer.send(game_levels.convexity[0].clone());
                     } else {
+                        // should never occur
                         won_the_game_event_writer.send(WonTheGame);
                     }
                 }
@@ -268,7 +282,9 @@ fn next_level(
                         current_level.level.perplexity(0);
                         spawn_level_event_writer.send(level.clone());
                         unlocked_cities.cities.push(City::Perplexity);
+                        game_state.set(crate::GameState::CityTitle).unwrap();
                     } else {
+                        // should never occur
                         won_the_game_event_writer.send(WonTheGame);
                     }
                 }
@@ -285,7 +301,9 @@ fn next_level(
                     if let Some(level) = game_levels.complexity.get(0) {
                         spawn_level_event_writer.send(level.clone());
                         unlocked_cities.cities.push(City::Complexity);
+                        game_state.set(crate::GameState::CityTitle).unwrap();
                     } else {
+                        // should never occur
                         won_the_game_event_writer.send(WonTheGame);
                     }
                 }

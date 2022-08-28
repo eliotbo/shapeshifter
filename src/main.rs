@@ -11,13 +11,15 @@ use shapeshifter_level_maker::ShapeshifterLevelMakerPlugin;
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
+const BG_COLOR: Color = Color::rgb(0.1, 0.1, 0.1);
 
 // Enum that will be used as a global state for the game
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
-enum GameState {
+pub enum GameState {
     Splash,
     Menu,
     Game,
+    CityTitle,
     Design,
 }
 
@@ -43,7 +45,7 @@ fn main() {
         //
         //
         //
-        .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
+        .insert_resource(ClearColor(BG_COLOR))
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapeshifterLevelMakerPlugin)
         // .add_plugin(CamPlugin)

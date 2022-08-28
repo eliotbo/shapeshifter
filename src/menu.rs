@@ -3,7 +3,7 @@ use crate::levels;
 
 use bevy::audio::AudioSink;
 use bevy::prelude::*;
-use shapeshifter_level_maker::util::{PerformedCut, SpawnLevel};
+use shapeshifter_level_maker::util::{PerformedCut, Polygon, SpawnLevel, Target};
 
 use super::{despawn_screen, GameState, TEXT_COLOR};
 
@@ -34,7 +34,17 @@ impl Plugin for MenuPlugin {
                     .with_system(menu_action)
                     .with_system(play_cut_sound)
                     .with_system(button_system),
-            );
+            )
+            .add_system_set(SystemSet::on_exit(GameState::Menu).with_system(remove_poly_target));
+    }
+}
+
+fn remove_poly_target(
+    mut commands: Commands,
+    query: Query<Entity, Or<(With<Target>, With<Polygon>)>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn_recursive();
     }
 }
 
@@ -491,7 +501,8 @@ fn menu_action(
             match menu_button_action {
                 // MenuButtonAction::Quit => app_exit_events.send(AppExit),
                 MenuButtonAction::Play => {
-                    game_state.set(GameState::Game).unwrap();
+                    // game_state.set(GameState::Game).unwrap();
+                    game_state.set(GameState::CityTitle).unwrap();
                     menu_state.set(MenuState::Disabled).unwrap();
                     if let Some(sink) = audio_sinks.get(&music_controller.0) {
                         sink.stop();
@@ -501,7 +512,8 @@ fn menu_action(
 
                 MenuButtonAction::Convexity => {
                     current_level.level = crate::levels::Level::Convexity(0);
-                    game_state.set(GameState::Game).unwrap();
+                    // game_state.set(GameState::Game).unwrap();
+                    game_state.set(GameState::CityTitle).unwrap();
                     menu_state.set(MenuState::Disabled).unwrap();
                     if let Some(sink) = audio_sinks.get(&music_controller.0) {
                         sink.stop();
@@ -510,7 +522,7 @@ fn menu_action(
 
                 MenuButtonAction::Perplexity => {
                     current_level.level = crate::levels::Level::Perplexity(0);
-                    game_state.set(GameState::Game).unwrap();
+                    game_state.set(GameState::CityTitle).unwrap();
                     menu_state.set(MenuState::Disabled).unwrap();
                     if let Some(sink) = audio_sinks.get(&music_controller.0) {
                         sink.stop();
@@ -519,7 +531,7 @@ fn menu_action(
 
                 MenuButtonAction::Complexity => {
                     current_level.level = crate::levels::Level::Complexity(0);
-                    game_state.set(GameState::Game).unwrap();
+                    game_state.set(GameState::CityTitle).unwrap();
                     menu_state.set(MenuState::Disabled).unwrap();
                     if let Some(sink) = audio_sinks.get(&music_controller.0) {
                         sink.stop();

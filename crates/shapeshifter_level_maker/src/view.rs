@@ -143,12 +143,15 @@ pub fn rotate_poly(
         let v1 = rotating.mouse_vec;
         let v2 = cursor.position - cursor.last_right_click_position;
         let delta_angle = v1.angle_between(v2);
+        println!("{:?}", delta_angle);
 
         let new_angle = delta_angle + rotating.starting_angle;
         transform.rotation = Quat::from_rotation_z(new_angle);
     }
 
-    if mouse_button_input.just_released(MouseButton::Right) {
+    if mouse_button_input.just_released(MouseButton::Right)
+        || mouse_button_input.just_pressed(MouseButton::Left)
+    {
         // remove Rotating
         for (entity, _, _) in query.iter_mut() {
             commands.entity(entity).remove::<Rotating>();
@@ -219,6 +222,16 @@ pub fn transform_poly(
             commands.entity(entity).remove::<Translating>();
             collision_test_writer.send(TestCollisionEvent(entity));
             // info!("sending collision after translating");
+        }
+    }
+
+    if mouse_button_input.just_released(MouseButton::Right)
+        || mouse_button_input.just_pressed(MouseButton::Left)
+    {
+        // remove Rotating
+        for (entity, _) in queries.p0().iter_mut() {
+            commands.entity(entity).remove::<MaybeRotating>();
+            collision_test_writer.send(TestCollisionEvent(entity));
         }
     }
 }

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use shapeshifter_level_maker::util::RemainingCuts;
+use bevy_easings::*;
+use shapeshifter_level_maker::util::{Polygon, RemainingCuts, SpawnLevel, Target};
 
 use super::TEXT_COLOR;
 
@@ -128,13 +129,101 @@ pub fn spawn_instruction(
     }
 }
 
-// pub fn spawn_city_title(
-//     mut commands: Commands,
-//     asset_server: Res<AssetServer>,
-//     pause_menu_query: Query<Entity, With<PauseMenu>>,
-//     mut spawn_city_title_event_reader: EventReader<SpawnCityTitle>,
-// ) {
-// }
+#[derive(Default)]
+pub struct CityTitleTimer {
+    pub maybe_timer: Option<Timer>,
+}
+
+#[derive(Component)]
+pub struct CityTitle;
+
+pub fn despawn_city(
+    mut commands: Commands,
+    mut spawn_level_event_writer: EventWriter<SpawnLevel>,
+    mut city_title_timer: ResMut<CityTitleTimer>,
+    game_levels: ResMut<GameLevels>,
+    time: Res<Time>,
+    query: Query<Entity, With<CityTitle>>,
+    mut game_state: ResMut<State<crate::GameState>>,
+) {
+    //
+    if let Some(ref mut timer) = city_title_timer.maybe_timer {
+        if timer.tick(time.delta()).just_finished() {
+            spawn_level_event_writer.send(game_levels.convexity[0].clone());
+            game_state.set(crate::GameState::Game).unwrap();
+
+            for entity in query.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
+    }
+}
+
+pub fn spawn_city_title(
+    mut commands: Commands,
+    fonts: Res<FontHandles>,
+    current_level: Res<CurrentLevel>,
+    // pause_menu_query: Query<Entity, With<PauseMenu>>,
+    // mut city_title_timer: ResMut<CityTitleTimer>,
+    // delete_query: Query<Entity, Or<(With<Polygon>, With<Target>, With<NextButtonParent>)>>,
+    // mut spawn_city_title_event_reader: EventReader<SpawnCityTitle>,
+) {
+    let font = fonts.font.clone();
+
+    commands.insert_resource(CityTitleTimer {
+        maybe_timer: Some(Timer::new(bevy::utils::Duration::from_millis(5000), false)),
+    });
+
+    let city_str = match current_level.level {
+        Level::Simplicity(_) => "first section: SIMPLICITY",
+        Level::Convexity(_) => "CONVEXITY",
+        Level::Perplexity(_) => "PERPLEXITY",
+        Level::Complexity(_) => "COMPLEXITY",
+        _ => "",
+    };
+
+    let label = format!("{}", city_str);
+
+    let ease_function = bevy_easings::EaseFunction::ExponentialInOut;
+
+    let text_style = TextStyle {
+        font: font.clone(),
+        font_size: 70.0,
+        color: super::TEXT_COLOR,
+    };
+
+    let start_style = Style {
+        margin: UiRect::all(Val::Auto),
+        flex_direction: FlexDirection::ColumnReverse,
+        align_items: AlignItems::Center,
+        ..default()
+    };
+
+    let sc = 0.0;
+
+    let easing_scale = Transform::from_scale(Vec3::new(sc, sc, 1.0)).ease_to(
+        Transform::from_scale(Vec3::new(1.0, 1.0, 1.0)),
+        ease_function,
+        bevy_easings::EasingType::Once {
+            duration: std::time::Duration::from_secs(5),
+        },
+    );
+
+    commands
+        .spawn_bundle(NodeBundle {
+            style: start_style,
+            color: Color::rgba(0.0, 0.0, 0.0, 0.0).into(),
+            transform: Transform::from_scale(Vec3::new(0.0, 0.0, 1.0)),
+            ..default()
+        })
+        .insert(easing_scale)
+        .insert(CityTitle)
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(TextBundle::from_section(label, text_style))
+                .insert(RemainingCutsComponent);
+        });
+}
 
 pub fn spawn_pause_menu(
     mut commands: Commands,

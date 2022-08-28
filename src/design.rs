@@ -187,7 +187,9 @@ draw polygon:        shift + left click (then release shift to continue)
 turn poly in target: select polygon + e + t
 move point:          Q  + left mouse
 add point:           left shift + right click
-delete all:          a + delete";
+delete all:          a + delete
+
+Note: there is no way to save a level on the browser version";
 
     let text_style = TextStyle {
         font: font.clone(),

@@ -3,8 +3,13 @@ PLAN
 
 TODO:
 
+0) add sounds in options
 0) see level number
 00) centralize font with resource
+
+
+000)    chocolate bar
+0000) square -> triangle
 
 1) nicer splash screen
 
@@ -55,6 +60,7 @@ FINAL VERSION
     0) remove grid
     1) remove most of polygon making code 
     2) remove move point functionality
+    3) remove right and left arrow keys
 
 
 
@@ -63,16 +69,6 @@ IDEAs
 
 
 
-    Each section has its own theme
-    00) FELT
-    0) Wood
-    1) Metal
-    2) Stone 
-    3) Glass
-
-    Level:
-    look at origami
-    chocolate bar
 
 
 

@@ -11,12 +11,12 @@ shapeshifter_level_maker = {path = "crates/shapeshifter_level_maker"}
 bevy = "0.8"
 lyon = "1.0"
 rand = "0.8"
+bevy_easings = "0.8"
 # bevy-inspector-egui = "0.12"
 # serde = { version = "1", features = ["derive"] }
 # obj-exporter = "0.2.0"
 # bevy_obj = "0.8"
 # serde_json = "1.0.59"
-# bevy_easings = "0.8"
 # rfd = "0.10"
 
 [patch.crates-io]
