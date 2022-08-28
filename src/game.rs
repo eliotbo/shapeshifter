@@ -17,11 +17,11 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameLevels::default())
             .insert_resource(CurrentLevel {
-                level: Level::Simplicity(0),
+                level: Level::Tutorial(0),
             })
             .insert_resource(UnlockedLevels { levels: Vec::new() })
             .insert_resource(UnlockedCities {
-                cities: vec![City::Simplicity],
+                cities: vec![City::Tutorial],
             })
             .insert_resource(WholeGameCuts { cuts: 0 })
             .init_resource::<WinSoundTimer>()
@@ -96,7 +96,13 @@ fn game_setup(
 ) {
     let spawn_level = game_levels.get(&current_level.level);
     spawn_level_event_writer.send(spawn_level.clone());
-    send_tutorial_text(0, &mut spawn_instruction_event_writer);
+
+    match current_level.level {
+        Level::Tutorial(0) => {
+            send_tutorial_text(0, &mut spawn_instruction_event_writer);
+        }
+        _ => {}
+    }
 }
 
 fn show_current_level_int(
@@ -109,7 +115,7 @@ fn show_current_level_int(
             // let level_int = game_levels.to_int(&current_level.level.clone());
 
             if let Some(mut section) = text.sections.get_mut(0) {
-                // info!("level_int: {}", level_int);
+                info!("level_int: {:?}", &current_level.level.clone());
                 let level_int = game_levels.to_int(&current_level.level.clone());
                 let label = format!("Level {} / {}", level_int, game_levels.get_total_levels());
                 section.value = label;
@@ -207,6 +213,7 @@ fn spawn_level_adjustments(
     mut spawn_next_level_button_event_writer: EventWriter<SpawnNextLevelButton>,
 ) {
     for level in spawn_level_event_reader.iter() {
+        info!("spawn_level_adjustments: {:?}", level);
         remaining_cuts.remaining = level.number_of_cuts;
         for entity in query.iter() {
             commands.entity(entity).despawn_recursive();
@@ -241,18 +248,20 @@ fn next_level(
             //
             //
             //
-            Level::Simplicity(level) => {
+            Level::Tutorial(level) => {
                 //
-                if level < game_levels.simplicity.len() - 1 {
-                    current_level.level.simplicity(level + 1);
-                    spawn_level_event_writer.send(game_levels.simplicity[level + 1].clone());
+                if level < game_levels.tutorial.len() - 1 {
+                    current_level.level.tutorial(level + 1);
+                    spawn_level_event_writer.send(game_levels.tutorial[level + 1].clone());
                     send_tutorial_text(level + 1, &mut spawn_instruction_event_writer);
+
+                    //  info!("next_level: {:?}", current_level);
 
                     //
                 } else {
-                    if let Some(_) = game_levels.convexity.get(0) {
-                        current_level.level.convexity(0);
-                        unlocked_cities.cities.push(City::Convexity);
+                    if let Some(_) = game_levels.simplicity.get(0) {
+                        current_level.level.simplicity(0);
+                        unlocked_cities.cities.push(City::Simplicity);
                         game_state.set(crate::GameState::CityTitle).unwrap();
 
                         // spawn_city_title_event_writer.send(SpawnCityTitle {
@@ -260,6 +269,25 @@ fn next_level(
                         // });
 
                         // spawn_level_event_writer.send(game_levels.convexity[0].clone());
+                    } else {
+                        // should never occur
+                        won_the_game_event_writer.send(WonTheGame);
+                    }
+                }
+            }
+
+            Level::Simplicity(level) => {
+                if level < game_levels.simplicity.len() - 1 {
+                    current_level.level.simplicity(level + 1);
+                    spawn_level_event_writer.send(game_levels.simplicity[level + 1].clone());
+                    //
+                    //
+                } else {
+                    if let Some(_) = game_levels.convexity.get(0) {
+                        current_level.level.convexity(0);
+                        // spawn_level_event_writer.send(level.clone());
+                        unlocked_cities.cities.push(City::Convexity);
+                        game_state.set(crate::GameState::CityTitle).unwrap();
                     } else {
                         // should never occur
                         won_the_game_event_writer.send(WonTheGame);
@@ -280,7 +308,7 @@ fn next_level(
                 } else {
                     if let Some(level) = game_levels.perplexity.get(0) {
                         current_level.level.perplexity(0);
-                        spawn_level_event_writer.send(level.clone());
+                        // spawn_level_event_writer.send(level.clone());
                         unlocked_cities.cities.push(City::Perplexity);
                         game_state.set(crate::GameState::CityTitle).unwrap();
                     } else {
@@ -299,7 +327,7 @@ fn next_level(
                     current_level.level.complexity(0);
                     // spawn_level_event_writer.send(game_levels.complexity[0].clone());
                     if let Some(level) = game_levels.complexity.get(0) {
-                        spawn_level_event_writer.send(level.clone());
+                        // spawn_level_event_writer.send(level.clone());
                         unlocked_cities.cities.push(City::Complexity);
                         game_state.set(crate::GameState::CityTitle).unwrap();
                     } else {
@@ -330,11 +358,23 @@ fn previous_level(
 ) {
     if let Some(_) = previous_level_event_reader.iter().next() {
         match current_level.level {
+            Level::Tutorial(level) => {
+                if level > 0 {
+                    current_level.level.tutorial(level - 1);
+                    spawn_level_event_writer.send(game_levels.tutorial[level - 1].clone());
+                } // do nothing if we're at the first level
+            }
             Level::Simplicity(level) => {
                 if level > 0 {
                     current_level.level.simplicity(level - 1);
                     spawn_level_event_writer.send(game_levels.simplicity[level - 1].clone());
-                } // do nothing if we're at the first level
+                } else {
+                    current_level
+                        .level
+                        .simplicity(game_levels.simplicity.len() - 1);
+                    spawn_level_event_writer
+                        .send(game_levels.simplicity[game_levels.tutorial.len() - 1].clone());
+                }
             }
             Level::Convexity(level) => {
                 if level > 0 {

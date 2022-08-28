@@ -154,6 +154,7 @@ pub struct SpawnPoly {
 pub struct SpawnPolyKeepPoly {
     pub polygon: String,
     pub polygon_multiplier: f32,
+    pub maybe_transform: Option<Transform>,
 }
 
 pub struct SpawnTarget {
@@ -166,7 +167,7 @@ pub struct SpawnTargetKeepTarget {
     pub target_multiplier: f32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SpawnLevel {
     pub polygon: String,
     pub target: String,
@@ -721,16 +722,22 @@ pub fn spawn_poly(
     }
 
     // this event keeps the existing polygons in the world
+    let mut maybe_transforms = Vec::new();
     for SpawnPolyKeepPoly {
         polygon,
         polygon_multiplier,
+        maybe_transform,
     } in spawn_polykeep_event_reader.iter()
     {
         poly_vec.push(SpawnPoly {
             polygon: polygon.clone(),
             polygon_multiplier: *polygon_multiplier,
         });
+        if let Some(yep_transform) = maybe_transform {
+            maybe_transforms.push(yep_transform.clone());
+        }
     }
+    let mut maybe_transforms_iter = maybe_transforms.iter();
 
     for SpawnPoly {
         polygon,
@@ -773,7 +780,11 @@ pub fn spawn_poly(
             let id = rng.gen::<u64>();
             let z = rng.gen::<f32>();
 
-            let transform = Transform::from_translation(Vec2::new(-300.0, 0.0).extend(z));
+            let mut transform = Transform::from_translation(Vec2::new(-300.0, 0.0).extend(z));
+
+            if let Some(inner_transform) = maybe_transforms_iter.next().clone() {
+                transform = inner_transform.clone();
+            }
 
             let mesh_handle = meshes.add(mesh);
 

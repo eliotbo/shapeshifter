@@ -16,14 +16,16 @@ pub struct CurrentLevel {
 
 #[derive(Clone, PartialEq)]
 pub enum City {
+    Tutorial,
     Simplicity,
     Convexity,
     Perplexity,
     Complexity,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Level {
+    Tutorial(usize),
     Simplicity(usize),
     Convexity(usize),
     Perplexity(usize),
@@ -31,6 +33,10 @@ pub enum Level {
 }
 
 impl Level {
+    pub fn tutorial(&mut self, x: usize) {
+        *self = Level::Tutorial(x);
+    }
+
     pub fn simplicity(&mut self, x: usize) {
         *self = Level::Simplicity(x);
     }
@@ -46,6 +52,7 @@ impl Level {
 }
 
 pub struct GameLevels {
+    pub tutorial: Vec<SpawnLevel>,
     pub simplicity: Vec<SpawnLevel>,
     pub convexity: Vec<SpawnLevel>,
     pub perplexity: Vec<SpawnLevel>,
@@ -55,6 +62,7 @@ pub struct GameLevels {
 impl GameLevels {
     pub fn get(&self, level: &Level) -> SpawnLevel {
         match level {
+            Level::Tutorial(x) => self.tutorial[*x].clone(),
             Level::Simplicity(idx) => self.simplicity[*idx].clone(),
             Level::Convexity(idx) => self.convexity[*idx].clone(),
             Level::Perplexity(idx) => self.perplexity[*idx].clone(),
@@ -63,10 +71,15 @@ impl GameLevels {
     }
 
     pub fn get_total_levels(&self) -> usize {
-        self.simplicity.len() + self.convexity.len() + self.perplexity.len() + self.complexity.len()
+        self.tutorial.len()
+            + self.simplicity.len()
+            + self.convexity.len()
+            + self.perplexity.len()
+            + self.complexity.len()
     }
 
     pub fn to_int(&self, level: &Level) -> usize {
+        let tut_num = self.tutorial.len();
         let sim_num = self.simplicity.len();
         let con_num = self.convexity.len();
         let per_num = self.perplexity.len();
@@ -75,21 +88,24 @@ impl GameLevels {
         // let total = sim_num + con_num + per_num + com_num;
 
         match level {
-            Level::Simplicity(idx) => *idx,
-            Level::Convexity(idx) => sim_num + *idx,
-            Level::Perplexity(idx) => sim_num + con_num + *idx,
-            Level::Complexity(idx) => sim_num + con_num + per_num + *idx,
+            Level::Tutorial(idx) => *idx,
+            Level::Simplicity(idx) => *idx + tut_num,
+            Level::Convexity(idx) => sim_num + tut_num + *idx,
+            Level::Perplexity(idx) => sim_num + tut_num + con_num + *idx,
+            Level::Complexity(idx) => sim_num + tut_num + con_num + per_num + *idx,
         }
     }
 }
 
 pub fn send_tutorial_text(
-    simplicity_level: usize,
+    tutorial_level: usize,
     spawn_instruction_event_writer: &mut EventWriter<SpawnInstruction>,
 ) {
-    let text = match simplicity_level {
-        0 => "The goal is the fit the whole polygon inside of the target area",
-        1 => "Rotate the polygon using either the right mouse button or the scroll wheel",
+    let text = match tutorial_level {
+        0 => "The goal is to fit the whole polygon inside of the target area",
+        // 1 => "Rotate the polygon using either the right mouse button or the scroll wheel",
+        1 => "Rotate the polygon by holding right click, move away for more precision
+Or scroll over it",
         2 => "Perform a cut by holding either the Ctrl key or the C key, and then using the mouse",
         3 => "The number of remaining cuts for the level is shown in the top left corner",
         4 => "There is a \"restart level\" option in the options accessible via the option button or M key",
@@ -108,7 +124,7 @@ pub fn send_tutorial_text(
 
 impl Default for GameLevels {
     fn default() -> Self {
-        let simplicity = vec![
+        let tutorial = vec![
             // tutorial
             // 0
             SpawnLevel::new3("002_simplicity_square", "002_simplicity_square", 0),
@@ -130,6 +146,8 @@ impl Default for GameLevels {
                 1.15,
             ),
             SpawnLevel::new4("a", "heart", 1, 1.3), // simplicity
+        ];
+        let simplicity = vec![
             SpawnLevel::new4("seal1", "pear", 3, 1.3),
             SpawnLevel::new4("a", "spade", 3, 1.155),
             SpawnLevel::new4("crab1", "whale1", 3, 1.3),
@@ -138,7 +156,6 @@ impl Default for GameLevels {
             SpawnLevel::new4("a", "glass", 3, 1.1),
             SpawnLevel::new4("gege1", "004_simplicity_square_parallel", 3, 1.1),
             SpawnLevel::new4("gege_turtle", "turtle1", 3, 1.3),
-            SpawnLevel::new4("cat3", "otter1", 3, 1.2), // convexity
             SpawnLevel::new4("squirrel1", "bird1", 3, 1.18), // convexity
         ];
         let perplexity = vec![
@@ -148,9 +165,13 @@ impl Default for GameLevels {
             SpawnLevel::new4("gege_weird", "beaver1", 2, 1.4), // perplexity
             SpawnLevel::new4("squirrel1", "glass", 2, 1.15),
         ];
-        let complexity = vec![SpawnLevel::new4("gege2", "fox1", 3, 1.1)];
+        let complexity = vec![
+            SpawnLevel::new4("cat3", "otter1", 3, 1.2),
+            SpawnLevel::new4("gege2", "fox1", 3, 1.1),
+        ];
 
         GameLevels {
+            tutorial,
             simplicity,
             convexity,
             perplexity,

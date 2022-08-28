@@ -143,7 +143,7 @@ pub fn rotate_poly(
         let v1 = rotating.mouse_vec;
         let v2 = cursor.position - cursor.last_right_click_position;
         let delta_angle = v1.angle_between(v2);
-        println!("{:?}", delta_angle);
+        // println!("{:?}", delta_angle);
 
         let new_angle = delta_angle + rotating.starting_angle;
         transform.rotation = Quat::from_rotation_z(new_angle);
@@ -185,7 +185,7 @@ pub fn transform_poly(
 
         let mouse_vec = cursor.position - cursor.last_right_click_position;
 
-        if mouse_vec.length() > 100.0 {
+        if mouse_vec.length() > 40.0 {
             commands
                 .entity(entity)
                 .insert(Rotating {

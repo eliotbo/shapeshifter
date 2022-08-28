@@ -86,6 +86,7 @@ pub struct SelectedOption;
 enum MenuButtonAction {
     Play,
     GoToCity,
+    Simplicity,
     Convexity,
     Perplexity,
     Complexity,
@@ -267,7 +268,7 @@ fn main_menu_setup(
     mut spawn_level_event_writer: EventWriter<SpawnLevel>,
     current_level: Res<crate::levels::CurrentLevel>,
 ) {
-    let new_game_label = if current_level.level == crate::levels::Level::Simplicity(0) {
+    let new_game_label = if current_level.level == crate::levels::Level::Tutorial(0) {
         "New Game"
     } else {
         "Continue"
@@ -419,6 +420,7 @@ fn settings_menu_setup(
         .insert(OnSettingsMenuScreen)
         .with_children(|parent| {
             for (action, text) in [
+                (MenuButtonAction::Simplicity, "Simplicity"),
                 (MenuButtonAction::Convexity, "Convexity"),
                 (MenuButtonAction::Perplexity, "Perplexity"),
                 (MenuButtonAction::Complexity, "Complexity"),
@@ -433,6 +435,11 @@ fn settings_menu_setup(
                 buttons_spawner.insert(action);
 
                 match text {
+                    "Simplicity" => {
+                        if !unlocked_cities.cities.contains(&levels::City::Simplicity) {
+                            buttons_spawner.insert(Inactive);
+                        }
+                    }
                     "Convexity" => {
                         if !unlocked_cities.cities.contains(&levels::City::Convexity) {
                             buttons_spawner.insert(Inactive);
@@ -509,6 +516,16 @@ fn menu_action(
                     }
                 }
                 MenuButtonAction::GoToCity => menu_state.set(MenuState::Settings).unwrap(),
+
+                MenuButtonAction::Simplicity => {
+                    current_level.level = crate::levels::Level::Simplicity(0);
+                    // game_state.set(GameState::Game).unwrap();
+                    game_state.set(GameState::CityTitle).unwrap();
+                    menu_state.set(MenuState::Disabled).unwrap();
+                    if let Some(sink) = audio_sinks.get(&music_controller.0) {
+                        sink.stop();
+                    }
+                }
 
                 MenuButtonAction::Convexity => {
                     current_level.level = crate::levels::Level::Convexity(0);

@@ -378,6 +378,7 @@ pub fn glow_design_poly(
                 spawn_polykeep_event_writer.send(SpawnPolyKeepPoly {
                     polygon: mesh_meta.name.clone(),
                     polygon_multiplier: 1.0,
+                    maybe_transform: None,
                 });
             }
 

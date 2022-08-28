@@ -139,9 +139,9 @@ pub struct CityTitle;
 
 pub fn despawn_city(
     mut commands: Commands,
-    mut spawn_level_event_writer: EventWriter<SpawnLevel>,
+    // mut spawn_level_event_writer: EventWriter<SpawnLevel>,
     mut city_title_timer: ResMut<CityTitleTimer>,
-    game_levels: ResMut<GameLevels>,
+    // game_levels: ResMut<GameLevels>,
     time: Res<Time>,
     query: Query<Entity, With<CityTitle>>,
     mut game_state: ResMut<State<crate::GameState>>,
@@ -149,7 +149,6 @@ pub fn despawn_city(
     //
     if let Some(ref mut timer) = city_title_timer.maybe_timer {
         if timer.tick(time.delta()).just_finished() {
-            spawn_level_event_writer.send(game_levels.convexity[0].clone());
             game_state.set(crate::GameState::Game).unwrap();
 
             for entity in query.iter() {
@@ -158,6 +157,8 @@ pub fn despawn_city(
         }
     }
 }
+
+const CITY_TITLE_MILLIS: u64 = 1000;
 
 pub fn spawn_city_title(
     mut commands: Commands,
@@ -171,11 +172,15 @@ pub fn spawn_city_title(
     let font = fonts.font.clone();
 
     commands.insert_resource(CityTitleTimer {
-        maybe_timer: Some(Timer::new(bevy::utils::Duration::from_millis(5000), false)),
+        maybe_timer: Some(Timer::new(
+            bevy::utils::Duration::from_millis(CITY_TITLE_MILLIS),
+            false,
+        )),
     });
 
     let city_str = match current_level.level {
-        Level::Simplicity(_) => "first section: SIMPLICITY",
+        Level::Tutorial(_) => "TUTORIAL",
+        Level::Simplicity(_) => "SIMPLICITY",
         Level::Convexity(_) => "CONVEXITY",
         Level::Perplexity(_) => "PERPLEXITY",
         Level::Complexity(_) => "COMPLEXITY",
@@ -205,7 +210,7 @@ pub fn spawn_city_title(
         Transform::from_scale(Vec3::new(1.0, 1.0, 1.0)),
         ease_function,
         bevy_easings::EasingType::Once {
-            duration: std::time::Duration::from_secs(5),
+            duration: std::time::Duration::from_millis(CITY_TITLE_MILLIS),
         },
     );
 
