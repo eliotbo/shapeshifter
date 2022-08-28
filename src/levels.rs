@@ -1,7 +1,49 @@
-use super::game::Level;
 use super::game_spawn::SpawnInstruction;
 use bevy::prelude::*;
 use shapeshifter_level_maker::util::SpawnLevel;
+
+pub struct UnlockedLevels {
+    pub levels: Vec<Level>,
+}
+
+pub struct UnlockedCities {
+    pub cities: Vec<City>,
+}
+
+pub struct CurrentLevel {
+    pub level: Level,
+}
+
+#[derive(Clone, PartialEq)]
+pub enum City {
+    Simplicity,
+    Convexity,
+    Perplexity,
+    Complexity,
+}
+
+#[derive(Clone, PartialEq)]
+pub enum Level {
+    Simplicity(usize),
+    Convexity(usize),
+    Perplexity(usize),
+    Complexity(usize),
+}
+
+impl Level {
+    pub fn simplicity(&mut self, x: usize) {
+        *self = Level::Simplicity(x);
+    }
+    pub fn convexity(&mut self, x: usize) {
+        *self = Level::Convexity(x);
+    }
+    pub fn perplexity(&mut self, x: usize) {
+        *self = Level::Perplexity(x);
+    }
+    pub fn complexity(&mut self, x: usize) {
+        *self = Level::Complexity(x);
+    }
+}
 
 pub struct GameLevels {
     pub simplicity: Vec<SpawnLevel>,
@@ -17,6 +59,22 @@ impl GameLevels {
             Level::Convexity(idx) => self.convexity[*idx].clone(),
             Level::Perplexity(idx) => self.perplexity[*idx].clone(),
             Level::Complexity(idx) => self.complexity[*idx].clone(),
+        }
+    }
+
+    pub fn to_int(&self, level: &Level) -> usize {
+        let sim_num = self.simplicity.len();
+        let con_num = self.convexity.len();
+        let per_num = self.perplexity.len();
+        // let com_num = self.complexity.len();
+
+        // let total = sim_num + con_num + per_num + com_num;
+
+        match level {
+            Level::Simplicity(idx) => *idx,
+            Level::Convexity(idx) => sim_num + *idx,
+            Level::Perplexity(idx) => sim_num + con_num + *idx,
+            Level::Complexity(idx) => sim_num + con_num + per_num + *idx,
         }
     }
 }

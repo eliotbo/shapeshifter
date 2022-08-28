@@ -139,19 +139,28 @@ pub fn transform_poly(
     mut collision_test_writer: EventWriter<TestCollisionEvent>,
 ) {
     for (_, mut transform, rotating, _) in queries.p0().iter_mut() {
-        // println!("rotating");
-        let diag_mouse_dist = cursor.position.y + -cursor.last_right_click_position.y;
         //
         //
-        // latch the final angle to fixed angles at every pi/25 radians
-        let free_angle = -diag_mouse_dist * 0.0035 + rotating.starting_angle;
+        // rotate using the center of mass of the polygon vs the mouse position
+        let v1 = (cursor.last_right_click_position - transform.translation.truncate()).normalize();
+        let v2 = (cursor.position - transform.translation.truncate()).normalize();
+        let delta_angle = v1.angle_between(v2);
+
+        //
+        //
+        // rotate using the y axis
+        // let diag_mouse_dist = cursor.position.y + -cursor.last_right_click_position.y;
+        // let free_angle = -diag_mouse_dist * 0.0035 + rotating.starting_angle;
+
+        let free_angle = delta_angle + rotating.starting_angle;
 
         let angle = free_angle;
         transform.rotation = Quat::from_rotation_z(angle);
     }
 
     for (_, mut transform, translating) in queries.p1().iter_mut() {
-        // println!("rotating");
+        //
+        //
         let mouse_delta = cursor.position - cursor.last_click_position;
         transform.translation =
             (translating.starting_pos + mouse_delta).extend(transform.translation.z);

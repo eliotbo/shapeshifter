@@ -2,8 +2,11 @@ PLAN
 
 
 TODO:
-0) add options menu button
-1) add next when level has been completed beforehand
+
+0) see level number
+00) centralize font with resource
+
+1) nicer splash screen
 
 2) tetris like arrows (holding shift make edges stick to each other)
 3) make Convexity section 
@@ -83,12 +86,8 @@ POLISHING
     ----limit the area of a new polygon after a cut (cannot make a new polygon that is
         too small)
 
-    add shadows to the edges of the polygons
 
-    make neuromorphic design for shapeshifted area. Send position of polygon points to gpu,
-    and use a polygon SDF. Make Corners rounded.
-            Make shaders for each theme.
-            Make contours for each theme.
+
 
     System that helps player to place polygon as tightly as possible inside the target
             player presses an arrow key and the polygon translates as far as possible in that direction
@@ -96,11 +95,8 @@ POLISHING
 
     Upon win, extend the target area so that it becomes the whole play area
 
-    When cutting, if two points are too close to each other, merge them
+ 
 
-    rounded edges ()
-
-    make visuals bigger than model by epsilon (leeway for collisions)
 
     remove the pull back to previous position when colliding with target 
         should just play sound and bounce horizontally quickly

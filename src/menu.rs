@@ -1,6 +1,8 @@
+use crate::game;
+use crate::levels;
+
 use bevy::audio::AudioSink;
 use bevy::prelude::*;
-
 use shapeshifter_level_maker::util::{PerformedCut, SpawnLevel};
 
 use super::{despawn_screen, GameState, TEXT_COLOR};
@@ -113,7 +115,6 @@ pub struct SelectedOption;
 enum MenuButtonAction {
     Play,
     GoToCity,
-    Simplicity,
     Convexity,
     Perplexity,
     Complexity,
@@ -293,7 +294,14 @@ fn main_menu_setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut spawn_level_event_writer: EventWriter<SpawnLevel>,
+    current_level: Res<crate::levels::CurrentLevel>,
 ) {
+    let new_game_label = if current_level.level == crate::levels::Level::Simplicity(0) {
+        "New Game"
+    } else {
+        "Continue"
+    };
+
     spawn_level_event_writer.send(SpawnLevel {
         polygon: "cat2".to_string(),
         target: "shark1".to_string(),
@@ -377,7 +385,7 @@ fn main_menu_setup(
                         ..default()
                     });
                     parent.spawn_bundle(TextBundle::from_section(
-                        "New Game",
+                        new_game_label,
                         button_text_style.clone(),
                     ));
                 });
@@ -403,7 +411,11 @@ fn main_menu_setup(
         });
 }
 
-fn settings_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn settings_menu_setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    unlocked_cities: Res<levels::UnlockedCities>,
+) {
     let button_style = Style {
         size: Size::new(Val::Px(200.0), Val::Px(65.0)),
         margin: UiRect::all(Val::Px(20.0)),
@@ -432,25 +444,41 @@ fn settings_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(OnSettingsMenuScreen)
         .with_children(|parent| {
             for (action, text) in [
-                (MenuButtonAction::Simplicity, "Simplicity"),
                 (MenuButtonAction::Convexity, "Convexity"),
                 (MenuButtonAction::Perplexity, "Perplexity"),
                 (MenuButtonAction::Complexity, "Complexity"),
             ] {
-                parent
-                    .spawn_bundle(ButtonBundle {
-                        style: button_style.clone(),
-                        color: NORMAL_BUTTON.into(),
-                        ..default()
-                    })
-                    .insert(action)
-                    .insert(Inactive)
-                    .with_children(|parent2| {
-                        parent2.spawn_bundle(TextBundle::from_section(
-                            text,
-                            button_text_style.clone(),
-                        ));
-                    });
+                let button_bundle = ButtonBundle {
+                    style: button_style.clone(),
+                    color: NORMAL_BUTTON.into(),
+                    ..default()
+                };
+
+                let mut buttons_spawner = parent.spawn_bundle(button_bundle);
+                buttons_spawner.insert(action);
+
+                match text {
+                    "Convexity" => {
+                        if !unlocked_cities.cities.contains(&levels::City::Convexity) {
+                            buttons_spawner.insert(Inactive);
+                        }
+                    }
+                    "Perplexity" => {
+                        if !unlocked_cities.cities.contains(&levels::City::Perplexity) {
+                            buttons_spawner.insert(Inactive);
+                        }
+                    }
+                    "Complexity" => {
+                        if !unlocked_cities.cities.contains(&levels::City::Complexity) {
+                            buttons_spawner.insert(Inactive);
+                        }
+                    }
+                    _ => {}
+                };
+
+                buttons_spawner.with_children(|parent2| {
+                    parent2.spawn_bundle(TextBundle::from_section(text, button_text_style.clone()));
+                });
             }
 
             parent
@@ -491,6 +519,7 @@ fn menu_action(
     mut game_state: ResMut<State<GameState>>,
     music_controller: Res<MusicController>,
     audio_sinks: Res<Assets<AudioSink>>,
+    mut current_level: ResMut<crate::levels::CurrentLevel>,
 ) {
     for (interaction, menu_button_action) in &interaction_query {
         if *interaction == Interaction::Clicked {
@@ -505,19 +534,31 @@ fn menu_action(
                 }
                 MenuButtonAction::GoToCity => menu_state.set(MenuState::Settings).unwrap(),
 
-                MenuButtonAction::Simplicity => {
-                    // menu_state.set(MenuState::SettingsDisplay).unwrap();
-                }
                 MenuButtonAction::Convexity => {
-                    // menu_state.set(MenuState::SettingsSound).unwrap();
+                    current_level.level = crate::levels::Level::Convexity(0);
+                    game_state.set(GameState::Game).unwrap();
+                    menu_state.set(MenuState::Disabled).unwrap();
+                    if let Some(sink) = audio_sinks.get(&music_controller.0) {
+                        sink.stop();
+                    }
                 }
 
                 MenuButtonAction::Perplexity => {
-                    // menu_state.set(MenuState::Settings).unwrap();
+                    current_level.level = crate::levels::Level::Perplexity(0);
+                    game_state.set(GameState::Game).unwrap();
+                    menu_state.set(MenuState::Disabled).unwrap();
+                    if let Some(sink) = audio_sinks.get(&music_controller.0) {
+                        sink.stop();
+                    }
                 }
 
                 MenuButtonAction::Complexity => {
-                    // menu_state.set(MenuState::Settings).unwrap();
+                    current_level.level = crate::levels::Level::Complexity(0);
+                    game_state.set(GameState::Game).unwrap();
+                    menu_state.set(MenuState::Disabled).unwrap();
+                    if let Some(sink) = audio_sinks.get(&music_controller.0) {
+                        sink.stop();
+                    }
                 }
 
                 MenuButtonAction::Design => {

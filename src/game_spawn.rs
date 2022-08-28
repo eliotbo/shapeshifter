@@ -5,6 +5,7 @@ use shapeshifter_level_maker::util::RemainingCuts;
 use super::TEXT_COLOR;
 
 use crate::game::{GameButtonAction, WholeGameCuts, WonTheGame};
+use crate::levels::*;
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 
@@ -224,6 +225,56 @@ pub fn spawn_pause_menu(
                 });
         }
     }
+}
+
+#[derive(Component)]
+pub struct LevelInt;
+
+pub fn spawn_current_level_int(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    game_levels: Res<GameLevels>,
+    current_level: Res<crate::levels::CurrentLevel>,
+) {
+    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+    let level_int = game_levels.to_int(&current_level.level.clone());
+    let label = format!("Level {}", level_int);
+
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                margin: UiRect::all(Val::Auto),
+                flex_direction: FlexDirection::RowReverse,
+                // align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                position_type: PositionType::Relative,
+                // align_items: AlignItems::Center,
+                position: UiRect {
+                    bottom: Val::Percent(45.0),
+                    left: Val::Percent(0.0),
+                    ..default()
+                },
+                ..default()
+            },
+            color: Color::rgba(0.0, 0.0, 0.0, 0.0).into(),
+            // visibility: Visibility { is_visible: false },
+            // computed_visibility: ComputedVisibility::not_visible(),
+            ..default()
+        })
+        .insert(LevelInt)
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(TextBundle::from_section(
+                    label,
+                    TextStyle {
+                        font: font.clone(),
+                        font_size: 50.0,
+                        color: TEXT_COLOR,
+                    },
+                ))
+                .insert(LevelInt);
+        });
 }
 
 // }
