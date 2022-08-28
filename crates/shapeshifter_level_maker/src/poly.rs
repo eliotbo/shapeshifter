@@ -208,7 +208,7 @@ pub fn add_point_to_poly(
                     transform: Transform::identity(),
                     ..default()
                 })
-                .insert(Polygon)
+                .insert(Polygon { in_target: false })
                 .insert(mesh_meta.clone())
                 .id();
 
@@ -528,7 +528,7 @@ pub fn end_polygon(
                     transform: fill_transform,
                     ..default()
                 })
-                .insert(Polygon)
+                .insert(Polygon { in_target: false })
                 .insert(MeshMeta {
                     id,
                     path: transformed_path.clone(),

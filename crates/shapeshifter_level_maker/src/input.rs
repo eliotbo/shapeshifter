@@ -5,7 +5,7 @@ use bevy::{
 
 use crate::cut::*;
 // use crate::load::QuickLoad;
-use crate::poly::{MakingPolygon, MakingSegment};
+use crate::poly::MakingPolygon;
 // use crate::save::SaveMeshEvent;
 use crate::util::{Globals, MovingPathPoint, TurnPolyIntoTarget};
 // use crate::util::Globals;

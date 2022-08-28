@@ -1,7 +1,7 @@
 use bevy::audio::AudioSink;
 use bevy::prelude::*;
 
-use shapeshifter_level_maker::util::SpawnLevel;
+use shapeshifter_level_maker::util::{PerformedCut, SpawnLevel};
 
 use super::{despawn_screen, GameState, TEXT_COLOR};
 
@@ -63,6 +63,7 @@ impl Plugin for MenuPlugin {
             .add_system_set(
                 SystemSet::on_update(GameState::Menu)
                     .with_system(menu_action)
+                    .with_system(play_cut_sound)
                     .with_system(button_system),
             );
     }
@@ -105,7 +106,7 @@ const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
 
 // Tag component used to mark wich setting is currently selected
 #[derive(Component)]
-struct SelectedOption;
+pub struct SelectedOption;
 
 // All actions that can be triggered from a button click
 #[derive(Component)]
@@ -121,42 +122,75 @@ enum MenuButtonAction {
 }
 
 // This system handles changing all buttons color based on mouse interaction
-fn button_system(
+pub fn button_system(
     mut interaction_query: Query<
         (&Interaction, &mut UiColor, Option<&SelectedOption>),
         (Changed<Interaction>, With<Button>, Without<Inactive>),
     >,
+    sound_map: Res<crate::menu::SoundMap>,
+    audio: Res<Audio>,
 ) {
     for (interaction, mut color, selected) in &mut interaction_query {
         *color = match (*interaction, selected) {
-            (Interaction::Clicked, _) | (Interaction::None, Some(_)) => PRESSED_BUTTON.into(),
-            (Interaction::Hovered, Some(_)) => HOVERED_PRESSED_BUTTON.into(),
-            (Interaction::Hovered, None) => HOVERED_BUTTON.into(),
+            (Interaction::Clicked, _) | (Interaction::None, Some(_)) => {
+                sound_map.play("bip", &audio);
+                PRESSED_BUTTON.into()
+            }
+            (Interaction::Hovered, Some(_)) => {
+                sound_map.play("click", &audio);
+                HOVERED_PRESSED_BUTTON.into()
+            }
+            (Interaction::Hovered, None) => {
+                sound_map.play("click", &audio);
+                HOVERED_BUTTON.into()
+            }
             (Interaction::None, None) => NORMAL_BUTTON.into(),
         }
     }
 }
 
-// This system updates the settings when a new value for a setting is selected, and marks
-// the button as the one currently selected
-fn setting_button<T: Component + PartialEq + Copy>(
-    interaction_query: Query<(&Interaction, &T, Entity), (Changed<Interaction>, With<Button>)>,
-    mut selected_query: Query<(Entity, &mut UiColor), With<SelectedOption>>,
-    mut commands: Commands,
-    mut setting: ResMut<T>,
-) {
-    for (interaction, button_setting, entity) in &interaction_query {
-        if *interaction == Interaction::Clicked && *setting != *button_setting {
-            let (previous_button, mut previous_color) = selected_query.single_mut();
-            *previous_color = NORMAL_BUTTON.into();
-            commands.entity(previous_button).remove::<SelectedOption>();
-            commands.entity(entity).insert(SelectedOption);
-            *setting = *button_setting;
-        }
-    }
-}
+// // This system updates the settings when a new value for a setting is selected, and marks
+// // the button as the one currently selected
+// fn setting_button<T: Component + PartialEq + Copy>(
+//     interaction_query: Query<(&Interaction, &T, Entity), (Changed<Interaction>, With<Button>)>,
+//     mut selected_query: Query<(Entity, &mut UiColor), With<SelectedOption>>,
+//     mut commands: Commands,
+//     mut setting: ResMut<T>,
+// ) {
+//     for (interaction, button_setting, entity) in &interaction_query {
+//         if *interaction == Interaction::Clicked && *setting != *button_setting {
+//             let (previous_button, mut previous_color) = selected_query.single_mut();
+//             *previous_color = NORMAL_BUTTON.into();
+//             commands.entity(previous_button).remove::<SelectedOption>();
+//             commands.entity(entity).insert(SelectedOption);
+//             *setting = *button_setting;
+//         }
+//     }
+// }
 
 pub struct MusicController(pub Handle<AudioSink>);
+
+use std::collections::HashMap;
+pub struct SoundMap {
+    pub map: HashMap<String, Vec<Handle<AudioSource>>>,
+}
+
+use rand::Rng;
+// use rand::Thread;
+
+impl SoundMap {
+    //
+    //
+    // plays a random sound in the sound group
+    pub fn play(&self, sound_group: &str, audio: &Audio) {
+        let mut rng = rand::thread_rng();
+        let sounds = self.map.get(sound_group).unwrap();
+        // let random_index = rng.gen_range(0..sounds.len());
+        let random_index = rng.gen_range(0..sounds.len()).clone();
+        let sound = &sounds[random_index];
+        audio.play(sound.clone());
+    }
+}
 
 fn menu_setup(
     mut commands: Commands,
@@ -169,9 +203,9 @@ fn menu_setup(
     //
     //
     // music settings
-    let audio_source_handle = asset_server.load("music/charles_menu.ogg");
+    let menu_music_handle = asset_server.load("music/charles_menu.ogg");
     let handle = audio_sinks.get_handle(
-        audio.play_with_settings(audio_source_handle, bevy::audio::PlaybackSettings::LOOP),
+        audio.play_with_settings(menu_music_handle, bevy::audio::PlaybackSettings::LOOP),
     );
     commands.insert_resource(MusicController(handle));
 
@@ -179,6 +213,80 @@ fn menu_setup(
     //
     // initialize menu state
     let _ = menu_state.set(MenuState::Main);
+
+    //
+    //
+    // sounds
+    let mut sound_map = HashMap::new();
+
+    // let click1 = asset_server.load("sounds/Menu/Menu Click 1.ogg"); // too different
+    let click2 = asset_server.load("sounds/Menu/Menu Click 2.ogg");
+    let click3 = asset_server.load("sounds/Menu/Menu Click 3.ogg");
+    let click4 = asset_server.load("sounds/Menu/Menu Click 4.ogg");
+    let click5 = asset_server.load("sounds/Menu/Menu Click 5.ogg");
+    let click7 = asset_server.load("sounds/Menu/Menu Click 7.ogg");
+    let bip = asset_server.load("sounds/Menu/Menu Bip.ogg");
+
+    // let scissor1 = asset_server.load("sounds/Scissor Cut/Scissor paper cut 1.ogg"); // too long
+    let scissor2 = asset_server.load("sounds/Scissor Cut/Scissor paper cut 2.ogg");
+    let scissor3 = asset_server.load("sounds/Scissor Cut/Scissor paper cut 3.ogg");
+    // let scissor4 = asset_server.load("sounds/Scissor Cut/Scissor paper cut 4.ogg"); // too long
+    let scissor5 = asset_server.load("sounds/Scissor Cut/Scissor paper cut 5.ogg");
+    let scissor6 = asset_server.load("sounds/Scissor Cut/Scissor paper cut 6.ogg");
+
+    let place1 = asset_server.load("sounds/Placement Ding/Placement Ding 1.ogg");
+    let place2 = asset_server.load("sounds/Placement Ding/Placement Ding 2.ogg");
+    let place3 = asset_server.load("sounds/Placement Ding/Placement Ding 3.ogg");
+    let place4 = asset_server.load("sounds/Placement Ding/Placement Ding 4.ogg");
+
+    // let victoy1 = asset_server.load("sounds/Victory Sounds/Victory Cartoon 1.ogg");
+    // let victoy2 = asset_server.load("sounds/Victory Sounds/Victory Cartoon 2.ogg");
+    let victoy3 = asset_server.load("sounds/Victory Sounds/Victory Cartoon 3.ogg");
+    // let victory_chord1 = asset_server.load("sounds/Victory Sounds/Victory Chord 1.ogg");
+    // let victory_chord2 = asset_server.load("sounds/Victory Sounds/Victory Chord 2.ogg");
+    // let victory_chord3 = asset_server.load("sounds/Victory Sounds/Victory Chord 3.ogg");
+    // let victory_chord4 = asset_server.load("sounds/Victory Sounds/Victory Chord 4.ogg");
+    // let victory_ukulele = asset_server.load("sounds/Victory Sounds/Victory Ukulele.ogg");
+
+    sound_map.insert(
+        "click".to_string(),
+        vec![click2, click3, click4, click5, click7],
+    );
+    sound_map.insert("bip".to_string(), vec![bip]);
+
+    sound_map.insert(
+        "cut".to_string(),
+        vec![scissor2, scissor3, scissor5, scissor6],
+    );
+
+    sound_map.insert("target".to_string(), vec![place1, place2, place3, place4]);
+
+    sound_map.insert(
+        "victory".to_string(),
+        vec![
+            // victoy1,
+            // victoy2,
+            victoy3,
+            // victory_chord1,
+            // victory_chord2,
+            // victory_chord3,
+            // victory_chord4,
+            // victory_ukulele,
+        ],
+    );
+
+    commands.insert_resource(SoundMap { map: sound_map });
+}
+
+fn play_cut_sound(
+    mut performed_cut_event_reader: EventReader<PerformedCut>,
+
+    sound_map: Res<crate::menu::SoundMap>,
+    audio: Res<Audio>,
+) {
+    for _ in performed_cut_event_reader.iter() {
+        sound_map.play("cut", &audio);
+    }
 }
 
 fn main_menu_setup(

@@ -7,6 +7,27 @@ use std::collections::HashMap;
 pub fn load_all_polygons(mut loaded_polygons: ResMut<LoadedPolygonsRaw>) {
     let mut polygon_map: HashMap<String, SaveMeshMeta2> = HashMap::new();
     polygon_map.insert(
+        "gege_turtle".to_string(),
+        serde_json::from_str(&include_str!("polygons/gege_turtle.pts")).unwrap(),
+    );
+    polygon_map.insert(
+        "gege_weird".to_string(),
+        serde_json::from_str(&include_str!("polygons/gege_weird.pts")).unwrap(),
+    );
+    polygon_map.insert(
+        "gege1".to_string(),
+        serde_json::from_str(&include_str!("polygons/gege1.pts")).unwrap(),
+    );
+    polygon_map.insert(
+        "gege2".to_string(),
+        serde_json::from_str(&include_str!("polygons/gege2.pts")).unwrap(),
+    );
+    polygon_map.insert(
+        "gege3".to_string(),
+        serde_json::from_str(&include_str!("polygons/gege3.pts")).unwrap(),
+    );
+
+    polygon_map.insert(
         "r".to_string(),
         serde_json::from_str(&include_str!("polygons/r.pts")).unwrap(),
     );

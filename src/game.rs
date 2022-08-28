@@ -1,19 +1,16 @@
-use crate::levels::*;
-// use crate::spawn::*;
 use crate::game_spawn::*;
 use crate::levels::send_tutorial_text;
+use crate::levels::*;
 
 use bevy::audio::AudioSink;
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::Duration};
 
 use shapeshifter_level_maker::util::{
-    HasWonLevelEvent, PerformedCut, Polygon, RemainingCuts, SpawnLevel, Target,
+    HasWonLevelEvent, PerformedCut, PolyIsInsideTarget, Polygon, RemainingCuts, SpawnLevel, Target,
 };
 
 use super::GameState;
 
-// This plugin will contain the game. In this case, it's just be a screen that will
-// display the current settings for 5 seconds before returning to the menu
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
@@ -22,24 +19,28 @@ impl Plugin for GamePlugin {
             .insert_resource(Level::Simplicity(0))
             .insert_resource(UnlockedLevels { levels: Vec::new() })
             .insert_resource(WholeGameCuts { cuts: 0 })
+            .init_resource::<WinSoundTimer>()
             .add_event::<NextLevel>()
             .add_event::<PreviousLevel>()
             .add_event::<WonTheGame>()
-            .add_event::<SpawnPauseMenu>()
+            .add_event::<TogglePauseMenu>()
             .add_event::<SpawnNextLevelButton>()
             .add_event::<SpawnInstruction>()
             .add_system_set(SystemSet::on_exit(GameState::Game).with_system(delete_game_entities))
             .add_system_set(
                 SystemSet::on_enter(GameState::Game)
                     .with_system(game_setup)
+                    .with_system(spawn_options_button)
                     .with_system(spawn_remaining_cuts_label),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::Game)
+                    .with_system(crate::menu::button_system)
                     .with_system(spawn_won_screen)
                     .with_system(spawn_next_level_button)
                     .with_system(spawn_pause_menu)
                     .with_system(next_level)
+                    .with_system(win_sound)
                     .with_system(spawn_level_adjustments)
                     .with_system(spawn_instruction)
                     .with_system(previous_level)
@@ -48,13 +49,15 @@ impl Plugin for GamePlugin {
                     .with_system(force_next_level)
                     .with_system(adjust_cuts_label)
                     .with_system(show_pause_menu)
+                    .with_system(play_inside_target_sound)
                     .with_system(activate_next_level_button),
             );
-
-        // .add_system_set(
-        //     SystemSet::on_exit(GameState::Game).with_system(despawn_screen::<OnGameScreen>),
-        // );
     }
+}
+
+#[derive(Default)]
+pub struct WinSoundTimer {
+    pub maybe_timer: Option<Timer>,
 }
 
 pub struct WholeGameCuts {
@@ -65,10 +68,7 @@ pub struct UnlockedLevels {
     pub levels: Vec<Level>,
 }
 
-// #[derive(Deref, DerefMut)]
-// struct GameTimer(Timer);
-
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Level {
     Simplicity(usize),
     Convexity(usize),
@@ -101,14 +101,18 @@ pub enum GameButtonAction {
     Restart,
     GoBack,
     ToMenu,
+    OptionsMenu,
 }
 
 fn inscrease_total_cuts(
     mut performed_cut_event_reader: EventReader<PerformedCut>,
     mut whole_game_cuts: ResMut<WholeGameCuts>,
+    sound_map: Res<crate::menu::SoundMap>,
+    audio: Res<Audio>,
 ) {
     for _ in performed_cut_event_reader.iter() {
         whole_game_cuts.cuts += 1;
+        sound_map.play("cut", &audio);
     }
 }
 
@@ -123,6 +127,7 @@ fn delete_game_entities(
             With<Polygon>,
             With<RemainingCutsComponent>,
             With<Instruction>,
+            With<OptionButton>,
         )>,
     >,
     // mut current_level: ResMut<CurrentLevel>,
@@ -133,15 +138,25 @@ fn delete_game_entities(
     }
 }
 
+fn play_inside_target_sound(
+    audio: Res<Audio>,
+    sound_map: Res<crate::menu::SoundMap>,
+    mut poly_inside_target_event_reader: EventReader<PolyIsInsideTarget>,
+) {
+    for _ in poly_inside_target_event_reader.iter() {
+        sound_map.play("target", &audio);
+    }
+}
+
 fn show_pause_menu(
     mut commands: Commands,
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<Entity, With<PauseMenu>>,
-    mut spawn_pause_menu_event_writer: EventWriter<SpawnPauseMenu>,
+    mut spawn_pause_menu_event_writer: EventWriter<TogglePauseMenu>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Escape) || keyboard_input.just_pressed(KeyCode::M) {
         if query.iter().count() == 0 {
-            spawn_pause_menu_event_writer.send(SpawnPauseMenu);
+            spawn_pause_menu_event_writer.send(TogglePauseMenu);
         } else {
             for entity in query.iter_mut() {
                 commands.entity(entity).despawn_recursive();
@@ -156,11 +171,18 @@ fn spawn_level_adjustments(
 
     mut spawn_level_event_reader: EventReader<SpawnLevel>,
     query: Query<Entity, With<Instruction>>,
+
+    unlocked_levels: Res<UnlockedLevels>,
+    current_level: Res<Level>,
+    mut spawn_next_level_button_event_writer: EventWriter<SpawnNextLevelButton>,
 ) {
     for level in spawn_level_event_reader.iter() {
         remaining_cuts.remaining = level.number_of_cuts;
         for entity in query.iter() {
             commands.entity(entity).despawn_recursive();
+        }
+        if unlocked_levels.levels.contains(&current_level.clone()) {
+            spawn_next_level_button_event_writer.send(SpawnNextLevelButton);
         }
     }
 }
@@ -182,7 +204,7 @@ fn adjust_cuts_label(
 fn next_level(
     // mut commands: Commands,
     game_levels: ResMut<GameLevels>,
-    mut unlocked_levels: ResMut<UnlockedLevels>,
+    // mut unlocked_levels: ResMut<UnlockedLevels>,
     mut next_level_event_reader: EventReader<NextLevel>,
     mut current_level: ResMut<Level>,
 
@@ -231,7 +253,6 @@ fn next_level(
                     } else {
                         won_the_game_event_writer.send(WonTheGame);
                     }
-                    // spawn_level_event_writer.send(game_levels.perplexity[0].clone());
                 }
             }
             //
@@ -259,7 +280,6 @@ fn next_level(
                 }
             }
         }
-        unlocked_levels.levels.push(current_level.clone());
     }
 }
 
@@ -314,15 +334,24 @@ fn previous_level(
 }
 
 fn force_next_level(
+    mut commands: Commands,
     keyboard_input: Res<Input<KeyCode>>,
     mut next_level_event_writer: EventWriter<NextLevel>,
     mut previous_level_event_writer: EventWriter<PreviousLevel>,
+    next_button_query: Query<Entity, With<NextButtonParent>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Right) {
         next_level_event_writer.send(NextLevel);
+
+        for entity in next_button_query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
     }
     if keyboard_input.just_pressed(KeyCode::Left) {
         previous_level_event_writer.send(PreviousLevel);
+        for entity in next_button_query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
     }
 }
 
@@ -342,6 +371,7 @@ fn next_button_action(
     next_button_query: Query<Entity, With<NextButtonParent>>,
     music_controller: Res<crate::menu::MusicController>,
     audio_sinks: Res<Assets<AudioSink>>,
+    mut spawn_pause_menu_event_writer: EventWriter<TogglePauseMenu>,
 ) {
     let mut has_despawned_next_button = false;
     for (interaction, menu_button_action) in interaction_query.iter_mut() {
@@ -369,6 +399,17 @@ fn next_button_action(
                     let spawn_level = game_levels.get(&current_level.clone());
                     spawn_level_event_writer.send(spawn_level);
                 } // _ => {}
+                GameButtonAction::OptionsMenu => {
+                    //
+                    spawn_pause_menu_event_writer.send(TogglePauseMenu);
+                    //
+                    //
+                    //
+                    //
+                    // Upon pressing options, the effects below should not occur
+                    return;
+                    // spawn_pause_menu_event_writer.send(TogglePauseMenu);
+                }
             }
 
             //
@@ -388,29 +429,46 @@ fn next_button_action(
     }
 }
 
+fn win_sound(
+    mut win_sound_timer: ResMut<WinSoundTimer>,
+    audio: Res<Audio>,
+    sound_map: Res<crate::menu::SoundMap>,
+    time: Res<Time>,
+) {
+    if let Some(ref mut timer) = win_sound_timer.maybe_timer {
+        if timer.tick(time.delta()).just_finished() {
+            sound_map.play("victory", &audio);
+        }
+    }
+}
+
 fn activate_next_level_button(
     mut commands: Commands,
-    // asset_server: Res<AssetServer>,
+    // mut win_sound_timer: ResMut<WinSoundTimer>,
     mut has_won_event_reader: EventReader<HasWonLevelEvent>,
     mut go_next_button_query: Query<(Entity, &mut Visibility), With<Button>>,
     mut spawn_next_level_button_event_writer: EventWriter<SpawnNextLevelButton>,
+    mut unlocked_levels: ResMut<UnlockedLevels>,
     current_level: Res<Level>,
-    mut won_the_game_event_writer: EventWriter<WonTheGame>,
 ) {
     //
     if let Some(_) = has_won_event_reader.iter().next() {
-        // TODO: REMOVE THIS
-        match *current_level {
-            Level::Simplicity(level) => {
-                if level + 1 == 6 {
-                    won_the_game_event_writer.send(WonTheGame);
-                    return;
-                }
-            }
-            _ => {}
-        }
-
         spawn_next_level_button_event_writer.send(SpawnNextLevelButton);
+
+        //
+        //
+        // activate win sound timer
+        // win_sound_timer.timer = Timer::new(Duration::from_millis(300), false);
+        //
+        //
+
+        if !unlocked_levels.levels.contains(&current_level.clone()) {
+            unlocked_levels.levels.push(current_level.clone());
+
+            commands.insert_resource(WinSoundTimer {
+                maybe_timer: Some(Timer::new(Duration::from_millis(500), false)),
+            });
+        }
 
         for (entity, mut vis) in go_next_button_query.iter_mut() {
             vis.is_visible = true;

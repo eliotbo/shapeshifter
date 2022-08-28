@@ -5,7 +5,7 @@ use bevy::{
 
 use crate::input::Action;
 use crate::material::FillMesh2dMaterial;
-use crate::target::*;
+// use crate::target::*;
 use crate::util::*;
 
 // use std::fs::create_dir;
@@ -256,7 +256,7 @@ pub fn quick_load(
                 transform,
                 ..default()
             })
-            .insert(Polygon)
+            .insert(Polygon { in_target: false })
             .insert(MeshMeta {
                 id,
                 path: transformed_path.clone(),
@@ -446,7 +446,7 @@ pub fn quick_load_all_mesh(
                     transform,
                     ..default()
                 })
-                .insert(Polygon)
+                .insert(Polygon { in_target: false })
                 .insert(MeshMeta {
                     id,
                     path: transformed_path.clone(),
@@ -570,7 +570,7 @@ pub fn load_mesh(
                     transform,
                     ..default()
                 })
-                .insert(Polygon)
+                .insert(Polygon { in_target: false })
                 .insert(MeshMeta {
                     id,
                     path: transformed_path.clone(),

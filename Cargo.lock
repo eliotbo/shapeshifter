@@ -3189,6 +3189,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "lyon",
+ "rand",
  "shapeshifter_level_maker",
 ]
 

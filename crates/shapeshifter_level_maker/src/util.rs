@@ -49,7 +49,7 @@ impl Default for Globals {
             cutting_segment_color: Color::ORANGE,
             target_color: Color::DARK_GRAY,
             ghost_color: Color::rgba(0.02, 0.01, 0.21, 1.0),
-            min_turn_angle: core::f32::consts::PI / 20.0,
+            min_turn_angle: core::f32::consts::PI / 200.0,
             cut_polygon: Color::TEAL,
             min_velocity: 0.5,
             friction: 50.0,
@@ -92,7 +92,9 @@ impl Default for CurrentLevel {
 }
 
 #[derive(Component)]
-pub struct Polygon;
+pub struct Polygon {
+    pub in_target: bool,
+}
 
 #[derive(Component)]
 pub struct PathPoint;
@@ -128,6 +130,12 @@ pub struct Translating {
 #[derive(Component)]
 pub struct Target {
     pub path: Path,
+}
+
+pub struct PolyIsInsideTarget;
+
+pub struct CheckPolyInsideTarget {
+    pub entity: Entity,
 }
 
 pub struct TurnPolyIntoTarget;
@@ -774,7 +782,7 @@ pub fn spawn_poly(
                     transform,
                     ..default()
                 })
-                .insert(Polygon)
+                .insert(Polygon { in_target: false })
                 .insert(MeshMeta {
                     id,
                     path: transformed_path.clone(),

@@ -1,17 +1,11 @@
-use crate::levels::*;
-// use crate::spawn::*;
+use crate::game::WholeGameCuts;
 use crate::game_spawn::*;
-// use crate::levels::send_tutorial_text;
-
-// use bevy::audio::AudioSink;
 use bevy::{
     input::mouse::MouseWheel,
     prelude::*,
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
-    time::{FixedTimestep, FixedTimesteps},
 };
 
-use bevy::render::camera::ScalingMode;
 use shapeshifter_level_maker::{input::Cursor, material::*, util::*};
 
 use super::GameState;
@@ -49,10 +43,10 @@ impl Plugin for DesignPlugin {
                 .with_system(spawn_design_poly)
                 .with_system(browse_poly)
                 .with_system(adjust_target_scale_view),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Design).with_run_criteria(FixedTimestep::step(0.2)), // .with_system(glow_design_poly),
         );
+        // .add_system_set(
+        //     SystemSet::on_update(GameState::Design).with_run_criteria(FixedTimestep::step(0.2)), // .with_system(glow_design_poly),
+        // );
     }
 }
 
@@ -110,11 +104,12 @@ fn design_setup(
     // mut spawn_instruction_event_writer: EventWriter<SpawnInstruction>,
     poly_raw_map: Res<LoadedPolygonsRaw>,
     mut spawn_designpoly_event_writer: EventWriter<SpawnDesignPoly>,
+    mut whole_game_cuts: ResMut<WholeGameCuts>,
 ) {
     // spawn_level_event_writer.send(game_levels.simplicity[5].clone());
     // send_tutorial_text(0, &mut spawn_instruction_event_writer);
     // info!("design_setup");
-
+    whole_game_cuts.cuts = 111111111;
     let mut position = Vec2::new(-575.0, -300.);
     for (name, _polygon) in poly_raw_map.polygons.iter() {
         //
@@ -245,12 +240,8 @@ pub fn spawn_design_poly(
     mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut spawn_polykeep_event_reader: EventReader<SpawnDesignPoly>,
-    globals: Res<Globals>,
+    // globals: Res<Globals>,
 ) {
-    // let (mesh, center_of_mass) = make_poly(mesh_meta, position);
-
-    // let mut poly_vec: Vec<SpawnDesignPoly> = Vec::new();
-
     for SpawnDesignPoly { polygon, position } in spawn_polykeep_event_reader.iter() {
         // let mesh_meta: MeshMeta = save_format_mesh_meta.into();
 
@@ -322,7 +313,7 @@ pub fn browse_poly(
     if let Some(mouse_wheel) = mouse_wheel_events.iter().next() {
         for mut transform in query.iter_mut() {
             // let transform = Transform::from_translation(-100.0,0.,0.);
-            let delta = Vec3::new(150.0, 0.0, 0.0);
+            let delta = Vec3::new(5.0, 0.0, 0.0);
             if mouse_wheel.y > 0.5 {
                 transform.translation += delta;
             }
@@ -337,20 +328,20 @@ pub fn glow_design_poly(
     // mut commands: Commands,
     mouse_button_input: Res<Input<MouseButton>>,
     cursor: Res<Cursor>,
-    keyboard_input: Res<Input<KeyCode>>,
-    query: Query<(Entity, &Handle<FillMesh2dMaterial>, &Transform, &MeshMeta), With<DesignPolygon>>,
+    // keyboard_input: Res<Input<KeyCode>>,
+    query: Query<(&Handle<FillMesh2dMaterial>, &Transform, &MeshMeta), With<DesignPolygon>>,
     mut materials: ResMut<Assets<FillMesh2dMaterial>>,
-    // mut spawn_polykeep_event_writer: EventWriter<SpawnDesignPoly>,
+
     mut spawn_polykeep_event_writer: EventWriter<SpawnPolyKeepPoly>,
     mut spawn_target_event_writer: EventWriter<SpawnTarget>,
 ) {
     let left_mouse_click = mouse_button_input.just_pressed(MouseButton::Left);
     let right_mouse_click = mouse_button_input.just_pressed(MouseButton::Right);
 
-    let ctrl = keyboard_input.pressed(KeyCode::LControl);
+    // let ctrl = keyboard_input.pressed(KeyCode::LControl);
     // let shift = keyboard_input.pressed(KeyCode::LShift);
 
-    for (entity, material_handle, transform, mesh_meta) in query.iter() {
+    for (material_handle, transform, mesh_meta) in query.iter() {
         //
         //
         //

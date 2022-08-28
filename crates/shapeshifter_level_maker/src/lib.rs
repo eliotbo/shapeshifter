@@ -67,6 +67,8 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_event::<TurnPolyIntoTarget>()
             .add_event::<SpawnTargetKeepTarget>()
             .add_event::<SpawnPolyKeepPoly>()
+            .add_event::<PolyIsInsideTarget>()
+            .add_event::<CheckPolyInsideTarget>()
             //
             //
             //
@@ -129,8 +131,8 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
 
 pub fn setup_mesh(
     // mut load_event_writer: EventWriter<Load>,
-    mut action_event_writer: EventWriter<Action>,
-    mut loaded_polygons_raw: ResMut<LoadedPolygonsRaw>,
+    // mut action_event_writer: EventWriter<Action>,
+    loaded_polygons_raw: Res<LoadedPolygonsRaw>,
 ) {
     if loaded_polygons_raw.is_changed() {
         // load_event_writer.send(Load("my_mesh2".to_string()));
@@ -206,20 +208,24 @@ pub fn test_collisions(
     target_query: Query<(&Transform, &Target)>,
     mut collision_test_event: EventReader<TestCollisionEvent>,
     mut check_win_condition_event: EventWriter<TestWinEvent>,
+    mut check_poly_inside_writer_event: EventWriter<CheckPolyInsideTarget>,
 ) {
-    if let Some(TestCollisionEvent(_entity)) = collision_test_event.iter().next() {
-        // let mut do_go_back_to_previous_pos = false;
-        // let mut meta1_intercting = false;
-        // let (entity1, transform1, meta1, mat_handle1) = query.get(*entity).unwrap();
-        // meta1.is_intersecting = false;
-        // let fill_mat = fill_mesh_assets.get_mut(mat_handle1).unwrap();
+    //
+    //
+    //
+    if let Some(TestCollisionEvent(entity)) = collision_test_event.iter().next() {
+        //
+        //
+        //
+        //
+        // check whether the polygon is inside the target
+        check_poly_inside_writer_event.send(CheckPolyInsideTarget { entity: *entity });
+        //
+        //
+        //
+        // check collisions for all polygons against all other polygons
         //
         let mut colliding_entities: Vec<Entity> = Vec::new();
-
-        // for (entity1, transform1, meta1, _) in query.iter() {
-        //     let fill_mat1 = fill_mesh_assets.get_mut(mat_handle1).unwrap();
-        //     for (entity2, transform2, meta2, _) in query.iter() {
-
         let mut iter = query.iter_combinations_mut();
         while let Some([(entity1, transform1, meta1, _), (entity2, transform2, meta2, _)]) =
             iter.fetch_next()
@@ -271,22 +277,6 @@ pub fn test_collisions(
         if colliding_entities.len() == 0 {
             check_win_condition_event.send(TestWinEvent);
         }
-
-        // let (transform1, mut meta1, _) = query.get_mut(*entity).unwrap();
-
-        // if do_go_back_to_previous_pos {
-        //     info!("inserting easing");
-        //     commands.entity(*entity).insert(transform1.ease_to(
-        //         meta1.previous_transform,
-        //         bevy_easings::EaseFunction::BounceOut,
-        //         bevy_easings::EasingType::Once {
-        //             duration: std::time::Duration::from_secs_f32(0.3),
-        //         },
-        //     ));
-        // } else {
-        //     meta1.previous_transform = transform1.clone();
-        //     check_win_condition_event.send(TestWinEvent);
-        // }
     }
 }
 

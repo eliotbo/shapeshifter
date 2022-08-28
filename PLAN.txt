@@ -1,11 +1,9 @@
 PLAN
 
 
-
-
 TODO:
-
-
+0) add options menu button
+1) add next when level has been completed beforehand
 
 2) tetris like arrows (holding shift make edges stick to each other)
 3) make Convexity section 

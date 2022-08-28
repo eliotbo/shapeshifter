@@ -2,7 +2,6 @@ use bevy::prelude::*;
 
 use crate::input::*;
 use crate::material::*;
-use crate::poly::*;
 use crate::util::*;
 
 use lyon::algorithms::hit_test::*;

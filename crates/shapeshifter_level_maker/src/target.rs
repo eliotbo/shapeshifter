@@ -1,22 +1,14 @@
-use crate::material::*;
 // use crate::poly::make_polygon_mesh;
 use crate::input::Action;
 // use crate::poly::Polygon;
 use crate::util::*;
 
-use bevy::{
-    prelude::*,
-    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
-};
+use bevy::prelude::*;
 
 use lyon::algorithms::hit_test::*;
 use lyon::path::FillRule;
 use lyon::tessellation::math::Point;
-use lyon::tessellation::path::Path;
 
-// pub struct LoadedTarget {
-//     pub save_mesh_meta: SaveMeshMeta,
-// }
 pub struct TargetPlugin;
 
 impl Plugin for TargetPlugin {
@@ -25,6 +17,7 @@ impl Plugin for TargetPlugin {
             // .add_event::<LoadedTarget>()
             // .add_system(spawn_target)
             .add_system(delete_target)
+            .add_system(poly_is_inside_target)
             .add_system(check_win_condition);
     }
 }
@@ -164,8 +157,61 @@ pub fn check_win_condition(
                 }
             }
             if has_won {
-                println!("You won!");
+                println!("You got the level! moving on to the next one");
                 has_won_event_writer.send(HasWonLevelEvent {});
+            }
+        }
+    }
+}
+
+// Checks whether all the points of all polygons are within the bounds of the target path
+pub fn poly_is_inside_target(
+    mut query: Query<(&Transform, &MeshMeta, &mut Polygon)>,
+    target_query: Query<(&Target, &Transform)>,
+
+    mut check_poly_inside_target_event: EventReader<CheckPolyInsideTarget>,
+    mut poly_inside_target_event_writer: EventWriter<PolyIsInsideTarget>,
+) {
+    for check_poly in check_poly_inside_target_event.iter() {
+        //
+        //
+        //
+        if let Some((target, target_transform)) = target_query.iter().next() {
+            let (transformed_target_path, _) = transform_path(&target.path, target_transform);
+            //
+            //
+            //
+            //
+            if let Ok((transform, meta, mut polygon)) = query.get_mut(check_poly.entity) {
+                //
+                //
+                //
+                // No change if the polygon is intersecting with anything
+                // This can probably be removed
+                if meta.is_intersecting {
+                    return;
+                }
+                //
+                //
+                let mut is_inside_target = true;
+                let (transformed_path, _) = transform_path(&meta.path, transform);
+                for seg in transformed_path.iter() {
+                    let pos: Point = seg.from();
+
+                    if !hit_test_path(&pos, transformed_target_path.iter(), FillRule::EvenOdd, 0.1)
+                    {
+                        is_inside_target = false;
+                        break;
+                    }
+                }
+
+                if is_inside_target && polygon.in_target == false {
+                    polygon.in_target = true;
+                    // trigger the sound effect
+                    poly_inside_target_event_writer.send(PolyIsInsideTarget);
+                } else if !is_inside_target {
+                    polygon.in_target = false;
+                }
             }
         }
     }

@@ -470,7 +470,7 @@ pub fn perform_cut(
                         transform: fill_transform,
                         ..Default::default()
                     })
-                    .insert(Polygon)
+                    .insert(Polygon { in_target: false })
                     .insert(MeshMeta {
                         id: rng.gen::<u64>(),
                         path: transformed_path.clone(),
@@ -545,40 +545,40 @@ pub fn perform_cut(
 //     }
 // }
 
-pub fn get_split_poly(indices: &Vec<usize>, k0: usize, k1: usize) -> (Vec<usize>, Vec<usize>) {
-    // find the index of k0 and k1 in indices
-    let mut k0_idx = 0;
-    let mut k1_idx = 0;
+// pub fn get_split_poly(indices: &Vec<usize>, k0: usize, k1: usize) -> (Vec<usize>, Vec<usize>) {
+//     // find the index of k0 and k1 in indices
+//     let mut k0_idx = 0;
+//     let mut k1_idx = 0;
 
-    for (idx, ind) in indices.iter().enumerate() {
-        if *ind == k0 {
-            k0_idx = idx;
-        }
-        if *ind == k1 {
-            k1_idx = idx;
-        }
-    }
+//     for (idx, ind) in indices.iter().enumerate() {
+//         if *ind == k0 {
+//             k0_idx = idx;
+//         }
+//         if *ind == k1 {
+//             k1_idx = idx;
+//         }
+//     }
 
-    let poly_a = if k0_idx > k1_idx {
-        let mut temp = indices[k0_idx..].to_vec();
-        temp.extend(indices[..k1_idx + 1].to_vec());
-        temp
-    } else {
-        indices[k0_idx..k1_idx + 1].to_vec()
-    };
+//     let poly_a = if k0_idx > k1_idx {
+//         let mut temp = indices[k0_idx..].to_vec();
+//         temp.extend(indices[..k1_idx + 1].to_vec());
+//         temp
+//     } else {
+//         indices[k0_idx..k1_idx + 1].to_vec()
+//     };
 
-    let poly_b = if k0_idx > k1_idx {
-        let mut temp = indices[..k1_idx + 1].to_vec();
-        temp.extend(indices[k0_idx..].to_vec());
-        temp
-    } else {
-        let mut temp = indices[..k0_idx].to_vec();
-        temp.extend(indices[k1_idx..].to_vec());
-        temp
-    };
+//     let poly_b = if k0_idx > k1_idx {
+//         let mut temp = indices[..k1_idx + 1].to_vec();
+//         temp.extend(indices[k0_idx..].to_vec());
+//         temp
+//     } else {
+//         let mut temp = indices[..k0_idx].to_vec();
+//         temp.extend(indices[k1_idx..].to_vec());
+//         temp
+//     };
 
-    (poly_a, poly_b)
-}
+//     (poly_a, poly_b)
+// }
 
 // TODO: figure out how to to do, but with ranges instead loops (see get_split_poly)
 pub fn split_poly_at(indices: &Vec<usize>, k0: usize, k1: usize) -> (Vec<usize>, Vec<usize>) {
@@ -639,41 +639,41 @@ pub fn get_poly_points(poly: &Vec<usize>, points: &Vec<PolyPoint>) -> Vec<PolyPo
     poly_points
 }
 
-pub fn show_intersects(
-    commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    only_intersects: &Vec<(usize, &Point)>,
-    fill_materials: &mut ResMut<Assets<FillMesh2dMaterial>>,
-) {
-    // visual check for whether the intersects are positioned and sorted correctly
-    let mut rng = thread_rng();
-    let mut r = rng.gen::<f32>();
-    let mut b = rng.gen::<f32>();
-    let mut g = rng.gen::<f32>();
-    for (k, inter) in only_intersects.iter().enumerate() {
-        let pos = Vec2::new(inter.1.x, inter.1.y);
+// pub fn show_intersects(
+//     commands: &mut Commands,
+//     meshes: &mut ResMut<Assets<Mesh>>,
+//     only_intersects: &Vec<(usize, &Point)>,
+//     fill_materials: &mut ResMut<Assets<FillMesh2dMaterial>>,
+// ) {
+//     // visual check for whether the intersects are positioned and sorted correctly
+//     let mut rng = thread_rng();
+//     let mut r = rng.gen::<f32>();
+//     let mut b = rng.gen::<f32>();
+//     let mut g = rng.gen::<f32>();
+//     for (k, inter) in only_intersects.iter().enumerate() {
+//         let pos = Vec2::new(inter.1.x, inter.1.y);
 
-        if k % 2 == 0 {
-            // println!("odd");
-            r = rng.gen::<f32>();
-            b = rng.gen::<f32>();
-            g = rng.gen::<f32>();
-        }
+//         if k % 2 == 0 {
+//             // println!("odd");
+//             r = rng.gen::<f32>();
+//             b = rng.gen::<f32>();
+//             g = rng.gen::<f32>();
+//         }
 
-        let ends_mesh_handle =
-            bevy::sprite::Mesh2dHandle(meshes.add(Mesh::from(shape::Quad::new(Vec2::new(5., 5.)))));
+//         let ends_mesh_handle =
+//             bevy::sprite::Mesh2dHandle(meshes.add(Mesh::from(shape::Quad::new(Vec2::new(5., 5.)))));
 
-        let mat_handle = fill_materials.add(FillMesh2dMaterial {
-            color: Vec4::new(r, b, g, 1.),
-            show_com: 0.0, // show center of mass
-            selected: 0.0,
-            is_intersecting: 0.0,
-        });
-        commands.spawn_bundle(MaterialMesh2dBundle {
-            mesh: ends_mesh_handle.clone(),
-            material: mat_handle,
-            transform: Transform::from_translation(pos.extend(200.0)),
-            ..Default::default()
-        });
-    }
-}
+//         let mat_handle = fill_materials.add(FillMesh2dMaterial {
+//             color: Vec4::new(r, b, g, 1.),
+//             show_com: 0.0, // show center of mass
+//             selected: 0.0,
+//             is_intersecting: 0.0,
+//         });
+//         commands.spawn_bundle(MaterialMesh2dBundle {
+//             mesh: ends_mesh_handle.clone(),
+//             material: mat_handle,
+//             transform: Transform::from_translation(pos.extend(200.0)),
+//             ..Default::default()
+//         });
+//     }
+// }

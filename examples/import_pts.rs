@@ -13,7 +13,7 @@ use std::collections::HashMap;
 fn main() {
     App::new()
         .insert_resource(WindowDescriptor {
-            title: "pen".to_string(),
+            title: "miport_pts".to_string(),
             width: 1200.,
             height: 800.,
             present_mode: bevy::window::PresentMode::Immediate,
@@ -91,13 +91,22 @@ pub fn build_ptsmap(
 
         for (name, pts) in pts_map.map.iter_mut() {
             // normalize the area
+
             let area_sqrt = pts.area.sqrt();
             // let new_points: Vec<Vec2> = pts.points.iter().map(|pt| *pt / area_sqrt).collect();
             let mut new_points = vec![];
 
+            let mut center_of_mass = Vec2::ZERO;
+            for pt in pts.points.iter() {
+                center_of_mass += *pt;
+            }
+            center_of_mass /= pts.points.len() as f32;
+
+            // move points to their center of maa
+
             for point in pts.points.iter() {
                 // normalize such that the new area is 100000
-                new_points.push(point.clone() / area_sqrt * 50000.0_f32.sqrt());
+                new_points.push((point.clone() - center_of_mass) / area_sqrt * 50000.0_f32.sqrt());
             }
 
             action_event_writer.send(Action::SaveOneSent {
@@ -114,23 +123,23 @@ pub fn read_all_pts(mut commands: Commands, mut action_event_writer: EventWriter
     save_prepath.push("assets/meshes/");
     info!("save_prepath: {:?}", save_prepath);
 
-    // for (idx, entry) in std::fs::read_dir(save_prepath).unwrap().enumerate() {
-    //     // if idx < 2 {
-    //     let entry = entry.unwrap();
-    //     let path = entry.path();
-    //     let path_str = path.to_str().unwrap();
-    //     if path_str.ends_with(".pts") {
-    //         // let save_mesh_meta = read_save_mesh_meta(path_str);
-    //         let name_of_file = path_str.split("/").last().unwrap();
-    //         let name_of_file = name_of_file.split(".").next().unwrap();
-    //         println!("{:?}", name_of_file);
+    for (idx, entry) in std::fs::read_dir(save_prepath).unwrap().enumerate() {
+        // if idx < 2 {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        let path_str = path.to_str().unwrap();
+        if path_str.ends_with(".pts") {
+            // let save_mesh_meta = read_save_mesh_meta(path_str);
+            let name_of_file = path_str.split("/").last().unwrap();
+            let name_of_file = name_of_file.split(".").next().unwrap();
+            println!("{:?}", name_of_file);
 
-    //         action_event_writer.send(Action::QuickLoad {
-    //             maybe_name: Some(name_of_file.to_string()),
-    //         });
-    //     }
-    //     // }
-    // }
+            action_event_writer.send(Action::QuickLoad {
+                maybe_name: Some(name_of_file.to_string()),
+            });
+        }
+        // }
+    }
 }
 
 fn setup(mut commands: Commands) {
