@@ -36,7 +36,7 @@ impl Plugin for GamePlugin {
                 SystemSet::on_enter(GameState::Game)
                     .with_system(game_setup)
                     .with_system(spawn_options_button)
-                    .with_system(spawn_current_level_int)
+                    .with_system(spawn_current_level)
                     .with_system(spawn_remaining_cuts_label),
             )
             .add_system_set(
@@ -102,11 +102,13 @@ fn show_current_level_int(
 ) {
     if current_level.is_changed() {
         for mut text in query.iter_mut() {
-            let level_int = game_levels.to_int(&current_level.level.clone());
+            // let level_int = game_levels.to_int(&current_level.level.clone());
 
             if let Some(mut section) = text.sections.get_mut(0) {
-                info!("level_int: {}", level_int);
-                section.value = format!("Level {}", level_int);
+                // info!("level_int: {}", level_int);
+                let level_int = game_levels.to_int(&current_level.level.clone());
+                let label = format!("Level {} / {}", level_int, game_levels.get_total_levels());
+                section.value = label;
             }
         }
     }

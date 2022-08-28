@@ -62,6 +62,10 @@ impl GameLevels {
         }
     }
 
+    pub fn get_total_levels(&self) -> usize {
+        self.simplicity.len() + self.convexity.len() + self.perplexity.len() + self.complexity.len()
+    }
+
     pub fn to_int(&self, level: &Level) -> usize {
         let sim_num = self.simplicity.len();
         let con_num = self.convexity.len();

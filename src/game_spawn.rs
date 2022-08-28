@@ -156,6 +156,13 @@ pub fn spawn_pause_menu(
                         margin: UiRect::all(Val::Auto),
                         flex_direction: FlexDirection::ColumnReverse,
                         align_items: AlignItems::Center,
+                        position_type: PositionType::Absolute,
+                        position: UiRect {
+                            bottom: Val::Px(150.0),
+                            left: Val::Px(470.0),
+                            ..default()
+                        },
+                        // align_self: AlignSelf::Center,
                         ..default()
                     },
                     color: Color::PURPLE.into(),
@@ -230,7 +237,7 @@ pub fn spawn_pause_menu(
 #[derive(Component)]
 pub struct LevelInt;
 
-pub fn spawn_current_level_int(
+pub fn spawn_current_level(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     game_levels: Res<GameLevels>,
@@ -239,20 +246,21 @@ pub fn spawn_current_level_int(
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
 
     let level_int = game_levels.to_int(&current_level.level.clone());
-    let label = format!("Level {}", level_int);
+    let label = format!("Level {} / {}", level_int, game_levels.get_total_levels());
 
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
                 margin: UiRect::all(Val::Auto),
-                flex_direction: FlexDirection::RowReverse,
-                // align_items: AlignItems::Center,
+                flex_direction: FlexDirection::ColumnReverse,
+                align_items: AlignItems::Center,
+                // align_self: AlignSelf::Center,
                 justify_content: JustifyContent::Center,
                 position_type: PositionType::Relative,
                 // align_items: AlignItems::Center,
                 position: UiRect {
-                    bottom: Val::Percent(45.0),
-                    left: Val::Percent(0.0),
+                    bottom: Val::Percent(-45.0),
+                    right: Val::Percent(-35.0),
                     ..default()
                 },
                 ..default()
@@ -269,7 +277,7 @@ pub fn spawn_current_level_int(
                     label,
                     TextStyle {
                         font: font.clone(),
-                        font_size: 50.0,
+                        font_size: 40.0,
                         color: TEXT_COLOR,
                     },
                 ))
