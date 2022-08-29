@@ -57,7 +57,7 @@ the puzzles!
         );
         let text_style = TextStyle {
             font: font.clone(),
-            font_size: 60.0,
+            font_size: 80.0,
             color: Color::TEAL,
         };
 
@@ -106,7 +106,7 @@ pub fn spawn_instruction(
         let font = fonts.font.clone();
         let text_style = TextStyle {
             font: font.clone(),
-            font_size: 30.0,
+            font_size: 40.0,
             color: TEXT_COLOR,
         };
 
@@ -203,7 +203,7 @@ pub fn spawn_city_title(
 
     let text_style = TextStyle {
         font: font.clone(),
-        font_size: 70.0,
+        font_size: 100.0,
         color: super::TEXT_COLOR,
     };
 
@@ -266,7 +266,7 @@ pub fn spawn_pause_menu(
 
             let button_text_style = TextStyle {
                 font: font.clone(),
-                font_size: 40.0,
+                font_size: 50.0,
                 color: TEXT_COLOR,
             };
             commands
@@ -296,7 +296,7 @@ pub fn spawn_pause_menu(
                             "Options",
                             TextStyle {
                                 font: font.clone(),
-                                font_size: 80.0,
+                                font_size: 110.0,
                                 color: TEXT_COLOR,
                             },
                         )
@@ -399,7 +399,7 @@ pub fn spawn_current_level(
                     label,
                     TextStyle {
                         font: font.clone(),
-                        font_size: 40.0,
+                        font_size: 60.0,
                         color: TEXT_COLOR,
                     },
                 ))
@@ -448,7 +448,7 @@ pub fn spawn_remaining_cuts_label(
                     label,
                     TextStyle {
                         font: font.clone(),
-                        font_size: 40.0,
+                        font_size: 60.0,
                         color: TEXT_COLOR,
                     },
                 ))
@@ -475,7 +475,7 @@ pub fn spawn_options_button(
 
     let button_text_style = TextStyle {
         font: font.clone(),
-        font_size: 32.0,
+        font_size: 50.0,
         color: TEXT_COLOR,
     };
 
@@ -544,7 +544,7 @@ pub fn spawn_next_level_button(
 
         let button_text_style = TextStyle {
             font: font.clone(),
-            font_size: 32.0,
+            font_size: 45.0,
             color: TEXT_COLOR,
         };
 

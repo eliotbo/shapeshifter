@@ -112,11 +112,11 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             // .add_system(rotate_poly)
             .add_system(rotate_once)
             .add_system(delete_poly)
-            .add_system(toggle_grid)
+            // .add_system(toggle_grid)
             .add_system(test_collisions)
             .add_system(revert_to_init)
-            .add_system(move_path_point)
-            .add_system(hover_path_point)
+            // .add_system(move_path_point)
+            // .add_system(hover_path_point)
             .add_system(direct_release_action)
             .add_system(check_cut_timer)
             // delete me please
@@ -282,50 +282,50 @@ pub fn test_collisions(
     }
 }
 
-// spawn grid at startup
-pub fn toggle_grid(
-    mut commands: Commands,
-    mut globals: ResMut<Globals>,
-    query: Query<Entity, With<Grid>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut action_event_reader: EventReader<Action>,
-) {
-    if let Some(Action::ToggleGrid) = action_event_reader.iter().next() {
-        globals.snap_to_grid = !globals.snap_to_grid;
+// // spawn grid at startup
+// pub fn toggle_grid(
+//     mut commands: Commands,
+//     mut globals: ResMut<Globals>,
+//     query: Query<Entity, With<Grid>>,
+//     mut materials: ResMut<Assets<ColorMaterial>>,
+//     mut meshes: ResMut<Assets<Mesh>>,
+//     mut action_event_reader: EventReader<Action>,
+// ) {
+//     if let Some(Action::ToggleGrid) = action_event_reader.iter().next() {
+//         globals.snap_to_grid = !globals.snap_to_grid;
 
-        let num_grid_pints = 25;
-        let num_grid_pints_x = 30;
+//         let num_grid_pints = 25;
+//         let num_grid_pints_x = 30;
 
-        if globals.snap_to_grid {
-            //
-            let mesh = bevy::sprite::Mesh2dHandle(
-                meshes.add(Mesh::from(shape::Quad::new(Vec2::new(3., 3.)))),
-            );
-            //
-            //
-            //
-            //
-            for x in -num_grid_pints_x..num_grid_pints_x {
-                for y in -num_grid_pints..num_grid_pints {
-                    commands
-                        .spawn_bundle(MaterialMesh2dBundle {
-                            material: materials.add(Color::rgb(0.5, 0.4, 0.5).into()),
-                            mesh: mesh.clone(),
-                            transform: Transform::from_translation(Vec3::new(
-                                x as f32 * globals.grid_size,
-                                y as f32 * globals.grid_size,
-                                0.0,
-                            )),
-                            ..Default::default()
-                        })
-                        .insert(Grid);
-                }
-            }
-        } else {
-            for entity in query.iter() {
-                commands.entity(entity).despawn_recursive();
-            }
-        }
-    }
-}
+//         if globals.snap_to_grid {
+//             //
+//             let mesh = bevy::sprite::Mesh2dHandle(
+//                 meshes.add(Mesh::from(shape::Quad::new(Vec2::new(3., 3.)))),
+//             );
+//             //
+//             //
+//             //
+//             //
+//             for x in -num_grid_pints_x..num_grid_pints_x {
+//                 for y in -num_grid_pints..num_grid_pints {
+//                     commands
+//                         .spawn_bundle(MaterialMesh2dBundle {
+//                             material: materials.add(Color::rgb(0.5, 0.4, 0.5).into()),
+//                             mesh: mesh.clone(),
+//                             transform: Transform::from_translation(Vec3::new(
+//                                 x as f32 * globals.grid_size,
+//                                 y as f32 * globals.grid_size,
+//                                 0.0,
+//                             )),
+//                             ..Default::default()
+//                         })
+//                         .insert(Grid);
+//                 }
+//             }
+//         } else {
+//             for entity in query.iter() {
+//                 commands.entity(entity).despawn_recursive();
+//             }
+//         }
+//     }
+// }

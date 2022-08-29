@@ -91,7 +91,7 @@ enum MenuButtonAction {
     // Convexity,
     Perplexity,
     Complexity,
-    Design,
+    // Design,
     BackToMainMenu,
 }
 
@@ -286,7 +286,8 @@ fn main_menu_setup(
         number_of_cuts: 1000,
     });
 
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    let font = asset_server.load("fonts/poly.ttf");
 
     let fonts = FontHandles { font: font.clone() };
     commands.insert_resource(fonts);
@@ -314,7 +315,7 @@ fn main_menu_setup(
     };
     let button_text_style = TextStyle {
         font: font.clone(),
-        font_size: 40.0,
+        font_size: 60.0,
         color: TEXT_COLOR,
     };
 
@@ -337,7 +338,7 @@ fn main_menu_setup(
                     "Menu",
                     TextStyle {
                         font: font.clone(),
-                        font_size: 80.0,
+                        font_size: 110.0,
                         color: TEXT_COLOR,
                     },
                 )
@@ -359,12 +360,12 @@ fn main_menu_setup(
                 })
                 .insert(MenuButtonAction::Play)
                 .with_children(|parent| {
-                    let icon = asset_server.load("textures/Game Icons/right.png");
-                    parent.spawn_bundle(ImageBundle {
-                        style: button_icon_style.clone(),
-                        image: UiImage(icon),
-                        ..default()
-                    });
+                    // let icon = asset_server.load("textures/Game Icons/right.png");
+                    // parent.spawn_bundle(ImageBundle {
+                    //     style: button_icon_style.clone(),
+                    //     image: UiImage(icon),
+                    //     ..default()
+                    // });
                     parent.spawn_bundle(TextBundle::from_section(
                         new_game_label,
                         button_text_style.clone(),
@@ -378,12 +379,12 @@ fn main_menu_setup(
                 })
                 .insert(MenuButtonAction::GoToCity)
                 .with_children(|parent| {
-                    let icon = asset_server.load("textures/Game Icons/right.png");
-                    parent.spawn_bundle(ImageBundle {
-                        style: button_icon_style.clone(),
-                        image: UiImage(icon),
-                        ..default()
-                    });
+                    // let icon = asset_server.load("textures/Game Icons/right.png");
+                    // parent.spawn_bundle(ImageBundle {
+                    //     style: button_icon_style.clone(),
+                    //     image: UiImage(icon),
+                    //     ..default()
+                    // });
                     parent.spawn_bundle(TextBundle::from_section(
                         "Go to city",
                         button_text_style.clone(),
@@ -401,7 +402,7 @@ fn settings_menu_setup(
     unlocked_cities: Res<levels::UnlockedCities>,
 ) {
     let button_style = Style {
-        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
+        size: Size::new(Val::Px(300.0), Val::Px(65.0)),
         margin: UiRect::all(Val::Px(20.0)),
         justify_content: JustifyContent::Center,
         align_items: AlignItems::Center,
@@ -409,8 +410,9 @@ fn settings_menu_setup(
     };
 
     let button_text_style = TextStyle {
-        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-        font_size: 40.0,
+        // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+        font: asset_server.load("fonts/poly.ttf"),
+        font_size: 60.0,
         color: TEXT_COLOR,
     };
 
@@ -500,19 +502,19 @@ fn settings_menu_setup(
                 });
             }
 
-            parent
-                .spawn_bundle(ButtonBundle {
-                    style: button_style.clone(),
-                    color: NORMAL_BUTTON.into(),
-                    ..default()
-                })
-                .insert(MenuButtonAction::Design)
-                .with_children(|parent2| {
-                    parent2.spawn_bundle(TextBundle::from_section(
-                        "Design level",
-                        button_text_style.clone(),
-                    ));
-                });
+            // parent
+            //     .spawn_bundle(ButtonBundle {
+            //         style: button_style.clone(),
+            //         color: NORMAL_BUTTON.into(),
+            //         ..default()
+            //     })
+            //     .insert(MenuButtonAction::Design)
+            //     .with_children(|parent2| {
+            //         parent2.spawn_bundle(TextBundle::from_section(
+            //             "Design level",
+            //             button_text_style.clone(),
+            //         ));
+            //     });
 
             parent
                 .spawn_bundle(ButtonBundle {
@@ -601,12 +603,11 @@ fn menu_action(
                     }
                 }
 
-                MenuButtonAction::Design => {
-                    game_state.set(GameState::Design).unwrap();
-                    menu_state.set(MenuState::Disabled).unwrap();
-                    // info!("menu state: {:?}", menu_state);
-                }
-
+                // MenuButtonAction::Design => {
+                //     game_state.set(GameState::Design).unwrap();
+                //     menu_state.set(MenuState::Disabled).unwrap();
+                //     // info!("menu state: {:?}", menu_state);
+                // }
                 MenuButtonAction::BackToMainMenu => {
                     if let Some(sink) = audio_sinks.get(&music_controller.0) {
                         sink.play();

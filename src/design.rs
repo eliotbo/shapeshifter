@@ -131,7 +131,7 @@ pub fn spawn_target_scale(
     //
     // info!("spawn_shortcuts");
 
-    let font = asset_server.load("fonts/FiraMono-Medium.ttf");
+    let font = asset_server.load("fonts/poly.ttf");
 
     let text = format!("target scale: {}", target_scale.scale);
 
@@ -176,7 +176,7 @@ pub fn spawn_shortcuts(mut commands: Commands, asset_server: Res<AssetServer>) {
     //
     // info!("spawn_shortcuts");
 
-    let font = asset_server.load("fonts/FiraMono-Medium.ttf");
+    let font = asset_server.load("fonts/poly.ttf");
 
     let text = "
 select:              s + left click

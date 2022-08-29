@@ -58,7 +58,7 @@ impl Plugin for GamePlugin {
                     .with_system(previous_level)
                     .with_system(inscrease_total_cuts)
                     .with_system(game_buttons_action)
-                    .with_system(force_next_level)
+                    // .with_system(force_next_level)
                     .with_system(show_cuts_label)
                     .with_system(show_pause_menu)
                     .with_system(play_inside_target_sound)

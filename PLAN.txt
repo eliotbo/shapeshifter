@@ -5,11 +5,6 @@ TODO:
 
 
 
-000)    chocolate bar
-0000) square -> triangle
-
-1) nicer splash screen
-
 6) new font
 
 
@@ -48,10 +43,16 @@ Generate polygon importa with include_str!:
 
 FINAL VERSION
 
-    0) remove grid
-    1) remove most of polygon making code 
-    2) remove move point functionality
-    3) remove right and left arrow keys
+- commented design in menu
+- commented toggle grid
+- commented end_polygon, start_polygon, add_point_to_poly, start_poly_segment, move_path_point, hover_path_point
+- commented force_next_leve
+
+
+   x 0) remove grid
+   x 1) remove most of polygon making code 
+   x 2) remove move point functionality
+   x 3) remove right and left arrow keys
 
 
 
@@ -66,9 +67,6 @@ IDEAs
 POLISHING
 
     yellow poly outside of target, green inside
-
-    on startup, show splash and cut the polygon letters
-
 
     System that helps player to place polygon as tightly as possible inside the target
             player presses an arrow key and the polygon translates as far as possible in that direction
