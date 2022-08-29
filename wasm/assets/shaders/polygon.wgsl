@@ -13,6 +13,10 @@ struct PolygonMaterial {
 @group(1) @binding(0)
 var<uniform> uni: PolygonMaterial;
 
+
+
+
+
 // // Converts a color from sRGB gamma to linear light gamma
 fn toLinear(sRGB: vec4<f32>) -> vec4<f32>
 {
@@ -32,7 +36,7 @@ fn fragment(
     var color = uni.color;
 
     if uni.is_intersecting > 0.5 {
-        let intersecting_color = vec4<f32>(1.0, 0.0, 0.0, 0.5);
+        let intersecting_color = vec4<f32>(1.0, 0.0, 0.0, 0.25);
         color = mix(color, intersecting_color, 0.8);
     }
 

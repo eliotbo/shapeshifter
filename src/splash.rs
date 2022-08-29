@@ -72,16 +72,16 @@ fn splash_setup(
 
     let s = 0.35;
     for (letter, translation, scale) in [
-        ("s", Vec3::new(-400.0, 0.0, 0.1), s),
-        ("h", Vec3::new(-300.0, 0.0, 0.11), s),
-        ("a", Vec3::new(-200.0, 0.0, 0.111), s),
-        ("p", Vec3::new(-100.0, 0.0, 0.1111), s),
-        ("e", Vec3::new(-00.0, 0.0, 0.2), s),
-        ("s", Vec3::new(100.0, 0.0, 0.22), s),
-        ("h", Vec3::new(200.0, 0.0, 0.12), s),
-        ("i", Vec3::new(280.0, 10.0, 0.13), s),
-        ("f", Vec3::new(360.0, 5.0, 0.14), s),
-        ("t", Vec3::new(470.0, 0.0, 0.15), s),
+        ("ss", Vec3::new(-400.0, 0.0, 0.1), s),
+        ("hh", Vec3::new(-300.0, 0.0, 0.11), s),
+        ("aa", Vec3::new(-200.0, -20.0, 0.111), 0.37),
+        ("pp", Vec3::new(-100.0, 0.0, 0.1111), s),
+        ("ee", Vec3::new(-00.0, -3.0, 0.2), 0.32),
+        ("ss", Vec3::new(100.0, -3.0, 0.22), s),
+        ("hh", Vec3::new(200.0, 0.0, 0.12), s),
+        ("ii", Vec3::new(270.0, -5.0, 0.13), 0.25),
+        ("ff", Vec3::new(340.0, 5.0, 0.14), 0.3),
+        ("tt", Vec3::new(430.0, 2.0, 0.15), 0.3),
     ] {
         let mut transform = Transform::from_translation(translation);
         transform.scale = Vec3::splat(scale);
@@ -107,14 +107,15 @@ fn countdown(
         game_state.set(GameState::Menu).unwrap();
     }
 
-    let x = 700.0;
-    let y = 25.0;
+    let x = 800.0;
+    let y = 20.0;
 
     // start the cut
     if cut_timer1.tick(time.delta()).just_finished() {
         //
         //
-        let start = Vec2::new(-x, -y);
+        // let start = Vec2::new(-x, -y);
+        let start = Vec2::new(10., -10.);
 
         action_event_writer
             .send(shapeshifter_level_maker::input::Action::StartMakingCutSegment { start });
@@ -130,7 +131,6 @@ fn countdown(
         let end = Vec2::new(x + 100.0, y);
 
         action_event_writer.send(shapeshifter_level_maker::input::Action::EndCutSegment { end });
-        println!("end cut");
 
         audio.play(logo_sounds.cut.clone());
     }

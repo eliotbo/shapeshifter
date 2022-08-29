@@ -7,6 +7,42 @@ use std::collections::HashMap;
 pub fn load_all_polygons(mut loaded_polygons: ResMut<LoadedPolygonsRaw>) {
     let mut polygon_map: HashMap<String, SaveMeshMeta2> = HashMap::new();
     polygon_map.insert(
+        "ss".to_string(),
+        serde_json::from_str(&include_str!("polygons/ss.pts")).unwrap(),
+    );
+    polygon_map.insert(
+        "hh".to_string(),
+        serde_json::from_str(&include_str!("polygons/hh.pts")).unwrap(),
+    );
+
+    polygon_map.insert(
+        "aa".to_string(),
+        serde_json::from_str(&include_str!("polygons/aa.pts")).unwrap(),
+    );
+    polygon_map.insert(
+        "pp".to_string(),
+        serde_json::from_str(&include_str!("polygons/pp.pts")).unwrap(),
+    );
+
+    polygon_map.insert(
+        "ee".to_string(),
+        serde_json::from_str(&include_str!("polygons/ee.pts")).unwrap(),
+    );
+    polygon_map.insert(
+        "ii".to_string(),
+        serde_json::from_str(&include_str!("polygons/ii.pts")).unwrap(),
+    );
+
+    polygon_map.insert(
+        "ff".to_string(),
+        serde_json::from_str(&include_str!("polygons/ff.pts")).unwrap(),
+    );
+    polygon_map.insert(
+        "tt".to_string(),
+        serde_json::from_str(&include_str!("polygons/tt.pts")).unwrap(),
+    );
+
+    polygon_map.insert(
         "fish_charles".to_string(),
         serde_json::from_str(&include_str!("polygons/fish_charles.pts")).unwrap(),
     );
