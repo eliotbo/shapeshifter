@@ -108,7 +108,7 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             .add_system(record_mouse_events_system.exclusive_system().at_start())
             .add_system(direct_action)
             .add_system(glow_poly)
-            .add_system(rotate_poly)
+            // .add_system(rotate_poly)
             .add_system(rotate_once)
             .add_system(delete_poly)
             .add_system(toggle_grid)

@@ -120,8 +120,14 @@ pub struct Ghost;
 #[derive(Component)]
 pub struct Rotating {
     pub starting_angle: f32,
-    pub mouse_vec: Vec2,
+    // pub mouse_vec: Vec2,
 }
+
+// #[derive(Component)]
+// pub struct Rotating {
+//     pub starting_angle: f32,
+//     pub mouse_vec: Vec2,
+// }
 
 #[derive(Component)]
 pub struct MaybeRotating {

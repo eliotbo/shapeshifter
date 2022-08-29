@@ -10,6 +10,7 @@ use crate::levels::*;
 use crate::menu::FontHandles;
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
+const CITY_TITLE_MILLIS: u64 = 3000;
 
 #[derive(Component)]
 pub struct PauseMenu;
@@ -169,8 +170,6 @@ pub fn despawn_city(
     }
 }
 
-const CITY_TITLE_MILLIS: u64 = 1000;
-
 pub fn spawn_city_title(
     mut commands: Commands,
     fonts: Res<FontHandles>,
@@ -192,7 +191,7 @@ pub fn spawn_city_title(
     let city_str = match current_level.level {
         Level::Tutorial(_) => "TUTORIAL",
         Level::Simplicity(_) => "SIMPLICITY",
-        Level::Convexity(_) => "CONVEXITY",
+        // Level::Convexity(_) => "CONVEXITY",
         Level::Perplexity(_) => "PERPLEXITY",
         Level::Complexity(_) => "COMPLEXITY",
         _ => "",
@@ -215,7 +214,7 @@ pub fn spawn_city_title(
         ..default()
     };
 
-    let sc = 0.0;
+    let sc = 0.3;
 
     let easing_scale = Transform::from_scale(Vec3::new(sc, sc, 1.0)).ease_to(
         Transform::from_scale(Vec3::new(1.0, 1.0, 1.0)),
@@ -559,7 +558,7 @@ pub fn spawn_next_level_button(
                     justify_content: JustifyContent::FlexEnd,
                     position_type: PositionType::Absolute,
                     position: UiRect {
-                        right: Val::Px(50.0),
+                        right: Val::Px(150.0),
                         top: Val::Px(25.0),
                         ..default()
                     },

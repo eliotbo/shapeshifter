@@ -86,8 +86,9 @@ pub struct SelectedOption;
 enum MenuButtonAction {
     Play,
     GoToCity,
+    Tutorial,
     Simplicity,
-    Convexity,
+    // Convexity,
     Perplexity,
     Complexity,
     Design,
@@ -391,13 +392,16 @@ fn main_menu_setup(
         });
 }
 
+// #[derive(Component)]
+// pub struct LockIcon;
+
 fn settings_menu_setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     unlocked_cities: Res<levels::UnlockedCities>,
 ) {
     let button_style = Style {
-        size: Size::new(Val::Px(200.0), Val::Px(65.0)),
+        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
         margin: UiRect::all(Val::Px(20.0)),
         justify_content: JustifyContent::Center,
         align_items: AlignItems::Center,
@@ -409,6 +413,22 @@ fn settings_menu_setup(
         font_size: 40.0,
         color: TEXT_COLOR,
     };
+
+    let button_icon_style = Style {
+        size: Size::new(Val::Px(30.0), Val::Auto),
+        // This takes the icons out of the flexbox flow, to be positioned exactly
+        position_type: PositionType::Absolute,
+        // The icon will be close to the left border of the button
+        position: UiRect {
+            left: Val::Px(10.0),
+            right: Val::Auto,
+            top: Val::Auto,
+            bottom: Val::Auto,
+        },
+        ..default()
+    };
+
+    let icon = asset_server.load("textures/Game Icons/lock.png");
 
     commands
         .spawn_bundle(NodeBundle {
@@ -424,8 +444,8 @@ fn settings_menu_setup(
         .insert(OnSettingsMenuScreen)
         .with_children(|parent| {
             for (action, text) in [
+                (MenuButtonAction::Tutorial, "Tutorial"),
                 (MenuButtonAction::Simplicity, "Simplicity"),
-                (MenuButtonAction::Convexity, "Convexity"),
                 (MenuButtonAction::Perplexity, "Perplexity"),
                 (MenuButtonAction::Complexity, "Complexity"),
             ] {
@@ -438,31 +458,44 @@ fn settings_menu_setup(
                 let mut buttons_spawner = parent.spawn_bundle(button_bundle);
                 buttons_spawner.insert(action);
 
+                let mut is_active = true;
                 match text {
+                    "Tutorial" => {
+                        if !unlocked_cities.cities.contains(&levels::City::Tutorial) {
+                            buttons_spawner.insert(Inactive);
+                            is_active = false;
+                        }
+                    }
                     "Simplicity" => {
                         if !unlocked_cities.cities.contains(&levels::City::Simplicity) {
                             buttons_spawner.insert(Inactive);
-                        }
-                    }
-                    "Convexity" => {
-                        if !unlocked_cities.cities.contains(&levels::City::Convexity) {
-                            buttons_spawner.insert(Inactive);
+                            is_active = false;
                         }
                     }
                     "Perplexity" => {
                         if !unlocked_cities.cities.contains(&levels::City::Perplexity) {
                             buttons_spawner.insert(Inactive);
+                            is_active = false;
                         }
                     }
                     "Complexity" => {
                         if !unlocked_cities.cities.contains(&levels::City::Complexity) {
                             buttons_spawner.insert(Inactive);
+                            is_active = false;
                         }
                     }
                     _ => {}
                 };
 
                 buttons_spawner.with_children(|parent2| {
+                    if !is_active {
+                        parent2.spawn_bundle(ImageBundle {
+                            style: button_icon_style.clone(),
+                            image: UiImage(icon.clone()),
+                            ..default()
+                        });
+                    }
+
                     parent2.spawn_bundle(TextBundle::from_section(text, button_text_style.clone()));
                 });
             }
@@ -521,6 +554,16 @@ fn menu_action(
                 }
                 MenuButtonAction::GoToCity => menu_state.set(MenuState::Settings).unwrap(),
 
+                MenuButtonAction::Tutorial => {
+                    current_level.level = crate::levels::Level::Tutorial(0);
+                    // game_state.set(GameState::Game).unwrap();
+                    game_state.set(GameState::CityTitle).unwrap();
+                    menu_state.set(MenuState::Disabled).unwrap();
+                    if let Some(sink) = audio_sinks.get(&music_controller.0) {
+                        sink.stop();
+                    }
+                }
+
                 MenuButtonAction::Simplicity => {
                     current_level.level = crate::levels::Level::Simplicity(0);
                     // game_state.set(GameState::Game).unwrap();
@@ -531,16 +574,15 @@ fn menu_action(
                     }
                 }
 
-                MenuButtonAction::Convexity => {
-                    current_level.level = crate::levels::Level::Convexity(0);
-                    // game_state.set(GameState::Game).unwrap();
-                    game_state.set(GameState::CityTitle).unwrap();
-                    menu_state.set(MenuState::Disabled).unwrap();
-                    if let Some(sink) = audio_sinks.get(&music_controller.0) {
-                        sink.stop();
-                    }
-                }
-
+                // MenuButtonAction::Convexity => {
+                //     current_level.level = crate::levels::Level::Convexity(0);
+                //     // game_state.set(GameState::Game).unwrap();
+                //     game_state.set(GameState::CityTitle).unwrap();
+                //     menu_state.set(MenuState::Disabled).unwrap();
+                //     if let Some(sink) = audio_sinks.get(&music_controller.0) {
+                //         sink.stop();
+                //     }
+                // }
                 MenuButtonAction::Perplexity => {
                     current_level.level = crate::levels::Level::Perplexity(0);
                     game_state.set(GameState::CityTitle).unwrap();

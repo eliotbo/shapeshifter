@@ -20,7 +20,7 @@ algo for turning gege's into a polygon:
 -1) gege mirror's the polygon
 0) save in assets/mesh/
 1) turn into json
-2) cargo run -release --example import_pts
+2) cargo run --release --example import_pts
 3) press m to normalize the polygons
 4) copy and paste to the crates/shapeshifter_level_maker/src/polygon folder
 5) add the polygon to the the load_poly_wasm.rs file

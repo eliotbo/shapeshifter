@@ -57,7 +57,7 @@ impl Plugin for GamePlugin {
                     .with_system(spawn_instruction)
                     .with_system(previous_level)
                     .with_system(inscrease_total_cuts)
-                    .with_system(next_button_action)
+                    .with_system(game_buttons_action)
                     .with_system(force_next_level)
                     .with_system(show_cuts_label)
                     .with_system(show_pause_menu)
@@ -264,6 +264,7 @@ fn next_level(
                         current_level.level.simplicity(0);
                         unlocked_cities.cities.push(City::Simplicity);
                         game_state.set(crate::GameState::CityTitle).unwrap();
+                        send_tutorial_text(0, &mut spawn_instruction_event_writer);
 
                         // spawn_city_title_event_writer.send(SpawnCityTitle {
                         //     city: City::Convexity,
@@ -281,29 +282,7 @@ fn next_level(
                 if level < game_levels.simplicity.len() - 1 {
                     current_level.level.simplicity(level + 1);
                     spawn_level_event_writer.send(game_levels.simplicity[level + 1].clone());
-                    //
-                    //
-                } else {
-                    if let Some(_) = game_levels.convexity.get(0) {
-                        current_level.level.convexity(0);
-                        // spawn_level_event_writer.send(level.clone());
-                        unlocked_cities.cities.push(City::Convexity);
-                        game_state.set(crate::GameState::CityTitle).unwrap();
-                    } else {
-                        // should never occur
-                        won_the_game_event_writer.send(WonTheGame);
-                    }
-                }
-            }
-            //
-            //
-            //
-            //
-            //
-            Level::Convexity(level) => {
-                if level < game_levels.convexity.len() - 1 {
-                    current_level.level.convexity(level + 1);
-                    spawn_level_event_writer.send(game_levels.convexity[level + 1].clone());
+
                     //
                     //
                 } else {
@@ -318,6 +297,29 @@ fn next_level(
                     }
                 }
             }
+            //
+            //
+            //
+            //
+            //
+            // Level::Convexity(level) => {
+            //     if level < game_levels.convexity.len() - 1 {
+            //         current_level.level.convexity(level + 1);
+            //         spawn_level_event_writer.send(game_levels.convexity[level + 1].clone());
+            //         //
+            //         //
+            //     } else {
+            //         if let Some(level) = game_levels.perplexity.get(0) {
+            //             current_level.level.perplexity(0);
+            //             // spawn_level_event_writer.send(level.clone());
+            //             unlocked_cities.cities.push(City::Perplexity);
+            //             game_state.set(crate::GameState::CityTitle).unwrap();
+            //         } else {
+            //             // should never occur
+            //             won_the_game_event_writer.send(WonTheGame);
+            //         }
+            //     }
+            // }
             //
             //
             Level::Perplexity(level) => {
@@ -375,18 +377,18 @@ fn previous_level(
                         .send(game_levels.tutorial[game_levels.tutorial.len() - 1].clone());
                 }
             }
-            Level::Convexity(level) => {
-                if level > 0 {
-                    current_level.level.convexity(level - 1);
-                    spawn_level_event_writer.send(game_levels.convexity[level - 1].clone());
-                } else {
-                    current_level
-                        .level
-                        .simplicity(game_levels.simplicity.len() - 1);
-                    spawn_level_event_writer
-                        .send(game_levels.simplicity[game_levels.simplicity.len() - 1].clone());
-                }
-            }
+            // Level::Convexity(level) => {
+            //     if level > 0 {
+            //         current_level.level.convexity(level - 1);
+            //         spawn_level_event_writer.send(game_levels.convexity[level - 1].clone());
+            //     } else {
+            //         current_level
+            //             .level
+            //             .simplicity(game_levels.simplicity.len() - 1);
+            //         spawn_level_event_writer
+            //             .send(game_levels.simplicity[game_levels.simplicity.len() - 1].clone());
+            //     }
+            // }
             Level::Perplexity(level) => {
                 if level > 0 {
                     current_level.level.perplexity(level - 1);
@@ -394,9 +396,9 @@ fn previous_level(
                 } else {
                     current_level
                         .level
-                        .convexity(game_levels.convexity.len() - 1);
+                        .simplicity(game_levels.simplicity.len() - 1);
                     spawn_level_event_writer
-                        .send(game_levels.convexity[game_levels.convexity.len() - 1].clone());
+                        .send(game_levels.simplicity[game_levels.simplicity.len() - 1].clone());
                 }
             }
             Level::Complexity(level) => {
@@ -437,7 +439,7 @@ fn force_next_level(
     }
 }
 
-fn next_button_action(
+fn game_buttons_action(
     mut commands: Commands,
     mut interaction_query: Query<
         (&Interaction, &GameButtonAction),

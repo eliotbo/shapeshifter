@@ -32,7 +32,7 @@ fn fragment(
     var color = uni.color;
 
     if uni.is_intersecting > 0.5 {
-        let intersecting_color = vec4<f32>(1.0, 0.0, 0.0, 0.5);
+        let intersecting_color = vec4<f32>(1.0, 0.0, 0.0, 0.25);
         color = mix(color, intersecting_color, 0.8);
     }
 

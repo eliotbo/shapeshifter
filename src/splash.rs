@@ -33,8 +33,8 @@ struct LogoSoundsHandle {
     // logo: Handle<AudioSource>,
 }
 
-const LOGO_TIME: f32 = 2.0;
-const CUT_TIME: f32 = 1.0;
+const LOGO_TIME: f32 = 5.0;
+const CUT_TIME: f32 = 3.0;
 const CUTTING_TIME: f32 = 0.05;
 
 fn splash_setup(
