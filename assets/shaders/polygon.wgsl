@@ -13,6 +13,10 @@ struct PolygonMaterial {
 @group(1) @binding(0)
 var<uniform> uni: PolygonMaterial;
 
+
+
+
+
 // // Converts a color from sRGB gamma to linear light gamma
 fn toLinear(sRGB: vec4<f32>) -> vec4<f32>
 {

@@ -3,9 +3,6 @@ PLAN
 
 TODO:
 
-0) add sounds in options
-
-
 
 
 000)    chocolate bar
@@ -13,9 +10,7 @@ TODO:
 
 1) nicer splash screen
 
-
 6) new font
-
 
 
 !!!) BEFORE WASM, change pos of window to default  !!!!
@@ -74,26 +69,10 @@ POLISHING
 
     on startup, show splash and cut the polygon letters
 
-    Make a better rounded look: at every point, but a bezier curve to round off the edges
-    ----limit the area of a new polygon after a cut (cannot make a new polygon that is
-        too small)
-
-
-
 
     System that helps player to place polygon as tightly as possible inside the target
             player presses an arrow key and the polygon translates as far as possible in that direction
             ctrl plus arrow rotates as much as possible
-
-
-
- 
-
-
-    remove the pull back to previous position when colliding with target 
-        should just play sound and bounce horizontally quickly
-
-    Wood texture for polygons
 
     optimization: import part of lyon (algorithms, path)
 
@@ -101,5 +80,3 @@ POLISHING
 
 
 WASM
-
-    Remove inspector from wasm build

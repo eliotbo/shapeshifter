@@ -1,3 +1,4 @@
+// use crate::material::{FeltMaterial, FillMesh2dMaterial};
 use crate::material::FillMesh2dMaterial;
 
 use bevy::{
@@ -623,10 +624,12 @@ pub fn make_polygon_mesh(path: &Path, shift_com: bool) -> (Mesh, Vec2) {
     for pos in &mesh_pos_attributes {
         let (pos_x, pos_y) = (pos[0], pos[1]);
 
-        mesh_attr_uvs.push([
-            1.0 * (pos_x - bounds_x.0) / size_x,
-            1.0 * (pos_y - bounds_y.0) / size_y,
-        ]);
+        // mesh_attr_uvs.push([
+        //     1.0 * (pos_x - bounds_x.0) / size_x,
+        //     1.0 * (pos_y - bounds_y.0) / size_y,
+        // ]);
+
+        mesh_attr_uvs.push([pos_x, pos_y]);
 
         normals.push([0.0, 0.0, 1.0]);
     }
@@ -684,9 +687,11 @@ pub fn build_path_from_points(points: &Vec<Vec2>, mult: f32) -> Path {
 // spawns a polygon from a MeshMeta
 pub fn spawn_poly(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     poly_raw_map: Res<LoadedPolygonsRaw>,
     query: Query<Entity, With<Polygon>>,
     mut fill_materials: ResMut<Assets<FillMesh2dMaterial>>,
+    // mut felt_materials: ResMut<Assets<FeltMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut spawn_poly_event_reader: EventReader<SpawnPoly>,
     mut spawn_level_event_reader: EventReader<SpawnLevel>,
@@ -770,6 +775,16 @@ pub fn spawn_poly(
             };
 
             let (mesh, center_of_mass) = make_polygon_mesh(&mesh_meta.path, true);
+
+            // let felt_mat = asset_server.load("textures/purple_velvet.png");
+
+            // let mat_handle = felt_materials.add(FeltMaterial {
+            //     color: globals.polygon_color.into(),
+            //     show_com: 0.0,
+            //     selected: 0.0,
+            //     is_intersecting: 0.0,
+            //     felt: felt_mat,
+            // });
 
             let mat_handle = fill_materials.add(FillMesh2dMaterial {
                 color: globals.polygon_color.into(),

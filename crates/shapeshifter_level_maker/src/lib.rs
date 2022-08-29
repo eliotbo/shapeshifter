@@ -92,6 +92,7 @@ impl Plugin for ShapeshifterLevelMakerPlugin {
             //
             .add_plugin(bevy_easings::EasingsPlugin)
             .add_plugin(FillMesh2dPlugin)
+            // .add_plugin(FeltPlugin)
             .add_plugin(TargetMesh2dPlugin)
             .add_plugin(CutMesh2dPlugin)
             //

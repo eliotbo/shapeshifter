@@ -520,7 +520,6 @@ pub fn spawn_options_button(
 
 pub fn spawn_next_level_button(
     mut commands: Commands,
-    // asset_server: Res<AssetServer>,
     mut spawn_next_level_button_event_reader: EventReader<SpawnNextLevelButton>,
     fonts: Res<FontHandles>,
 ) {
